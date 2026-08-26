@@ -53,7 +53,7 @@ make docs
 
 ## Team
 
-- Govind, CSED - Roll No: TBD, Email: TBD
-- Teammate 1, CSED - Roll No: TBD, Email: TBD
-- Teammate 2, CSED - Roll No: TBD, Email: TBD
+- Govind, Roll No-1024030968, Email: gpodder_be24@thapar.edu
+- Ashish, Roll No-1024030096 , Email: Kashish_be24@thapar.edu
+- Divya, CSED - Roll No: TBD, Email: TBD
 
