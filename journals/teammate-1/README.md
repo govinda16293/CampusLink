@@ -1,4 +1,4 @@
-# Teammate 1 - Project Journal
+# Ashish - Project Journal
 
 Use this folder for weekly UCS503P progress updates.
 
