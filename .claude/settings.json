@@ -19,7 +19,18 @@
       "Bash(curl -s http://localhost:5173/api/nope)",
       "Bash(node -p \"require\\('./node_modules/express/package.json'\\).version\")",
       "Bash(git add *)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(awk 'NR==1 || /LISTEN/ {print $1, $2, $9}')",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" --max-time 5 http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" --max-time 5 http://127.0.0.1:5173/)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" --max-time 5 \"http://[::1]:5173/\")",
+      "Bash(curl -s -o /dev/null --max-time 2 http://127.0.0.1:5173/)",
+      "Bash(awk '/LISTEN/ {print $1, $2, $9}')",
+      "Bash(curl -s --max-time 5 http://127.0.0.1:5173/src/main.jsx)",
+      "Bash(curl -s --max-time 5 http://127.0.0.1:5173/src/App.jsx)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" --max-time 5 \"http://127.0.0.1:5173/@fs$\\(pwd\\)/packages/shared/src/index.js\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" --max-time 5 \"http://127.0.0.1:5173/src/index.css\")"
     ]
   }
 }
