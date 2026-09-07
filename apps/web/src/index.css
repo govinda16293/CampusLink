@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens.
+ *
+ * The signup/auth screens are intentionally plain for now — a design is coming from the team
+ * and will be applied as a styling pass. Anything visual should reach for these tokens rather
+ * than hard-coded hex values, so that pass is a change to this file plus component classes,
+ * not a rewrite.
+ */
+@theme {
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
