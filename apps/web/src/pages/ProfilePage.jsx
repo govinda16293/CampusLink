@@ -6,13 +6,18 @@ import { useAuthStore } from '../store/authStore';
 import { Avatar } from '../components/ui/Avatar';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
+import { MailIcon, ShieldIcon, TargetIcon, UserIcon } from '../components/ui/icons';
 
 /**
- * A student's profile. Shows your own when no id is in the URL.
+ * A student's profile, laid out to the supplied design.
  *
- * Always fetches rather than reading the cached store user, because the same component renders
- * other students' profiles — and because the server decides what a viewer may see. The email is
- * present on your own profile and absent on everyone else's, and that is enforced server-side.
+ * The design is a portfolio hero, so its slots are mapped to what CampusLink actually knows about
+ * a student: the amber eyebrow is their branch, the huge headline is their name, and the contact
+ * grid becomes the four attributes that matter when deciding whether to join someone's goal.
+ *
+ * Always fetches rather than reading the cached store user, because this same component renders
+ * other students' profiles and the server decides what a viewer may see — email is present on
+ * your own profile and absent on everyone else's, enforced server-side.
  */
 export function ProfilePage() {
   const { id } = useParams();
@@ -36,12 +41,12 @@ export function ProfilePage() {
   }, [id]);
 
   if (state.status === 'loading') {
-    return <p className="py-12 text-center text-sm text-slate-500">Loading profile…</p>;
+    return <p className="py-16 text-center text-sm text-white/50">Loading profile…</p>;
   }
 
   if (state.status === 'error') {
     return (
-      <Alert variant="solid" tone="error">
+      <Alert variant="dark" tone="error">
         {state.error.message}
       </Alert>
     );
@@ -49,74 +54,90 @@ export function ProfilePage() {
 
   const { user } = state;
 
+  const attributes = [
+    isOwnProfile && { icon: MailIcon, label: 'Email', value: user.email },
+    { icon: UserIcon, label: 'Year of study', value: user.year ? `Year ${user.year}` : 'Not set' },
+    { icon: ShieldIcon, label: 'Reliability', value: `${user.reliabilityScore} / 100` },
+    { icon: TargetIcon, label: 'Goals completed', value: String(user.goalsCompleted) },
+  ].filter(Boolean);
+
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <div className="flex flex-wrap items-start gap-5">
-          <Avatar name={user.name} id={user.id} photoUrl={user.photoUrl} size="lg" />
-
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">{user.name}</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              {[
-                user.branch ? BRANCH_LABEL[user.branch] : null,
-                user.year ? `Year ${user.year}` : null,
-              ]
-                .filter(Boolean)
-                .join(' · ') || 'No branch or year set yet'}
-            </p>
-            {isOwnProfile && <p className="mt-0.5 text-sm text-slate-500">{user.email}</p>}
-          </div>
+      <section className="frost-panel relative overflow-hidden rounded-3xl p-7 sm:p-10">
+        {/* Status pill and primary action, mirroring the design's top row. */}
+        <div className="flex items-start justify-between gap-4">
+          <span className="inline-flex items-center gap-2 text-sm text-white/70">
+            <span
+              aria-hidden="true"
+              className={`size-2 rounded-full ${user.isVerified === false ? 'bg-amber-400' : 'bg-emerald-400'}`}
+            />
+            {isOwnProfile && user.isVerified === false ? 'Unverified' : 'Verified student'}
+          </span>
 
           {isOwnProfile && (
             <Link to="/profile/edit">
-              <Button variant="secondary">Edit profile</Button>
+              <Button variant="amber" className="px-5 py-2.5 text-sm">
+                Edit profile
+              </Button>
             </Link>
           )}
         </div>
 
-        <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-5 sm:grid-cols-3">
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Reliability
-            </dt>
-            <dd className="mt-1 text-lg font-semibold text-slate-900">{user.reliabilityScore}</dd>
+        <div className="mt-6 grid items-center gap-10 lg:grid-cols-[1fr_auto]">
+          <div className="min-w-0">
+            <p className="text-lg font-bold text-amber-400">
+              {user.branch ? BRANCH_LABEL[user.branch] : 'Branch not set'}
+            </p>
+
+            {/* The name is the design's headline. break-words so a long name cannot overflow
+                the panel on a narrow screen. */}
+            <h1 className="mt-2 break-words text-5xl font-extrabold leading-[0.95] tracking-tight text-white sm:text-6xl">
+              {user.name}
+            </h1>
+
+            <dl className="mt-9 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+              {attributes.map(({ icon: Icon, label, value }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <Icon className="size-5 shrink-0 text-amber-400" />
+                  <div className="min-w-0">
+                    <dt className="text-xs uppercase tracking-wide text-white/45">{label}</dt>
+                    <dd className="truncate text-[0.95rem] text-white">{value}</dd>
+                  </div>
+                </div>
+              ))}
+            </dl>
           </div>
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Goals completed
-            </dt>
-            <dd className="mt-1 text-lg font-semibold text-slate-900">{user.goalsCompleted}</dd>
+
+          <div className="flex justify-center lg:justify-end">
+            <Avatar
+              name={user.name}
+              id={user.id}
+              photoUrl={user.photoUrl}
+              size="xl"
+              halo
+              className="ring-1 ring-white/10"
+            />
           </div>
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Member since
-            </dt>
-            <dd className="mt-1 text-lg font-semibold text-slate-900">
-              {new Date(user.createdAt).toLocaleDateString(undefined, {
-                month: 'short',
-                year: 'numeric',
-              })}
-            </dd>
-          </div>
-        </dl>
+        </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Interests</h2>
+      <section className="frost-panel rounded-3xl p-7 sm:p-8">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+          Interests
+        </h2>
         {user.interests.length ? (
-          <ul className="mt-3 flex flex-wrap gap-2">
+          <ul className="mt-4 flex flex-wrap gap-2">
             {user.interests.map((interest) => (
               <li
                 key={interest}
-                className="rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-700"
+                className="rounded-full bg-amber-400/12 px-4 py-1.5 text-sm font-medium text-amber-200 ring-1 ring-inset ring-amber-300/20"
               >
                 {interest}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-3 text-sm text-white/50">
             {isOwnProfile
               ? 'No interests yet — adding a few helps us suggest goals you would actually join.'
               : 'This student has not added any interests yet.'}

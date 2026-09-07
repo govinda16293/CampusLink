@@ -44,18 +44,18 @@ export function ProfileNudge() {
   }
 
   return (
-    <section className="rounded-2xl border border-brand-200 bg-brand-50 p-5">
+    <section className="frost-panel rounded-3xl p-6">
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-brand-800">
+          <h2 className="text-sm font-semibold text-amber-300">
             Your profile is {completeness}% complete
           </h2>
-          <p className="mt-1 text-sm text-brand-700">
+          <p className="mt-1 text-sm text-white/65">
             Add your {missing.slice(0, 2).join(' and ')} so we can suggest goals worth joining.
           </p>
 
           <div
-            className="mt-3 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-brand-200"
+            className="mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-white/10"
             role="progressbar"
             aria-valuenow={completeness}
             aria-valuemin={0}
@@ -63,14 +63,14 @@ export function ProfileNudge() {
             aria-label="Profile completeness"
           >
             <div
-              className="h-full rounded-full bg-brand-600 transition-all"
+              className="h-full rounded-full bg-amber-400 transition-all"
               style={{ width: `${completeness}%` }}
             />
           </div>
 
           <Link
             to="/profile/edit"
-            className="mt-4 inline-block text-sm font-semibold text-brand-700 underline underline-offset-4 hover:text-brand-800"
+            className="mt-4 inline-block text-sm font-semibold text-amber-300 underline underline-offset-4 hover:text-amber-200"
           >
             Complete your profile
           </Link>
@@ -80,7 +80,7 @@ export function ProfileNudge() {
           type="button"
           onClick={dismiss}
           aria-label="Dismiss"
-          className="rounded-lg p-1.5 text-brand-500 transition-colors hover:bg-brand-100 hover:text-brand-800"
+          className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
         >
           <svg
             viewBox="0 0 20 20"
