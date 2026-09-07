@@ -165,3 +165,83 @@ describe('profile routes require authentication', () => {
     await request(app).get('/api/users/someone').expect(401);
   });
 });
+
+describe('profile photo', () => {
+  // A one-pixel JPEG, enough to exercise the real decode/store/serve path.
+  const JPEG_1PX =
+    '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
+    'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
+    'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+  const dataUrl = `data:image/jpeg;base64,${JPEG_1PX}`;
+
+  it('stores a photo and exposes a URL rather than the bytes', async () => {
+    const { token, user } = await registerVerifiedUser('a_be24@thapar.edu');
+    const auth = { Authorization: `Bearer ${token}` };
+
+    expect(user.photoUrl).toBeNull();
+
+    const res = await request(app)
+      .post('/api/users/me/photo')
+      .set(auth)
+      .send({ dataUrl })
+      .expect(200);
+
+    // The DTO must carry a URL, never the image itself — a feed of twenty cards would otherwise
+    // inline twenty images into one response.
+    expect(res.body.user.photoUrl).toContain(`/api/users/${user.id}/photo`);
+    expect(JSON.stringify(res.body)).not.toContain(JPEG_1PX);
+  });
+
+  it('serves the bytes with the right media type and a cache header', async () => {
+    const { token, user } = await registerVerifiedUser('a_be24@thapar.edu');
+    await request(app)
+      .post('/api/users/me/photo')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ dataUrl })
+      .expect(200);
+
+    const res = await request(app).get(`/api/users/${user.id}/photo`).expect(200);
+    expect(res.headers['content-type']).toContain('image/jpeg');
+    expect(res.headers['cache-control']).toContain('immutable');
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it('rejects an SVG, which could carry script', async () => {
+    // The bytes are served straight back to a browser, so this one matters.
+    const { token } = await registerVerifiedUser('a_be24@thapar.edu');
+    await request(app)
+      .post('/api/users/me/photo')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ dataUrl: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' })
+      .expect(400);
+  });
+
+  it('rejects a remote URL instead of an upload', async () => {
+    const { token } = await registerVerifiedUser('a_be24@thapar.edu');
+    await request(app)
+      .post('/api/users/me/photo')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ dataUrl: 'https://example.com/avatar.jpg' })
+      .expect(400);
+  });
+
+  it('removes a photo', async () => {
+    const { token, user } = await registerVerifiedUser('a_be24@thapar.edu');
+    const auth = { Authorization: `Bearer ${token}` };
+    await request(app).post('/api/users/me/photo').set(auth).send({ dataUrl }).expect(200);
+
+    const res = await request(app).delete('/api/users/me/photo').set(auth).expect(200);
+    expect(res.body.user.photoUrl).toBeNull();
+    await request(app).get(`/api/users/${user.id}/photo`).expect(404);
+  });
+
+  it('404s for a student with no photo', async () => {
+    const { user } = await registerVerifiedUser('a_be24@thapar.edu');
+    await request(app).get(`/api/users/${user.id}/photo`).expect(404);
+  });
+
+  it('requires authentication to upload', async () => {
+    await request(app).post('/api/users/me/photo').send({ dataUrl }).expect(401);
+    await request(app).delete('/api/users/me/photo').expect(401);
+  });
+});

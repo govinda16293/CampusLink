@@ -47,7 +47,19 @@ model User {
   year        Int?
   /// One of GENDER in packages/shared/src/enums.js. Drives the gender-preference filter.
   gender      String  @default("UNDISCLOSED")
-  photoUrl    String?
+  /// Avatar bytes, base64-encoded, with its media type.
+  ///
+  /// Deliberately never included in any DTO — it is served by GET /users/:id/photo instead. A
+  /// feed of twenty goal cards would otherwise carry twenty inlined images in one JSON payload.
+  /// Serving it separately also lets the browser cache it, and `photoUpdatedAt` provides the
+  /// cache-buster so a newly uploaded photo appears immediately.
+  ///
+  /// Stored in the database rather than on disk because free-tier hosting has an ephemeral
+  /// filesystem — an uploaded avatar would vanish on the next deploy. Step 7 introduces real
+  /// object storage for notes; avatars can move there behind the same interface.
+  photoData      String?
+  photoMimeType  String?
+  photoUpdatedAt DateTime?
   /// Comma-separated interest tags. SQLite has no array type, so the API splits and joins it;
   /// this becomes a native String[] if and when the project moves to PostgreSQL only.
   interests   String  @default("")

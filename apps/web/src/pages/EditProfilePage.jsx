@@ -15,6 +15,7 @@ import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
 import { Select } from '../components/ui/Select';
 import { InterestsInput } from '../components/ui/InterestsInput';
+import { AvatarUpload } from '../components/ui/AvatarUpload';
 
 const GENDER_LABEL = {
   MALE: 'Male',
@@ -71,6 +72,8 @@ export function EditProfilePage() {
         <Alert variant="dark" tone="success">
           {saved ? 'Profile saved.' : null}
         </Alert>
+
+        <AvatarUpload user={user} onChange={updateUser} />
 
         <Field
           variant="dark"

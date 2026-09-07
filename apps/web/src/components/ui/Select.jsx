@@ -36,7 +36,7 @@ export function Select({
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={error ? errorId : hint ? hintId : undefined}
         className={[
-          'mt-1.5 block w-full rounded-xl border-0 py-3 pl-3 pr-10 shadow-sm',
+          'mt-2 block w-full rounded-xl border-0 py-3.5 pl-4 pr-10 shadow-sm',
           'ring-1 ring-inset focus:ring-2 focus:ring-inset focus:outline-none',
           dark
             ? [
@@ -67,7 +67,7 @@ export function Select({
           {error}
         </p>
       ) : hint ? (
-        <p id={hintId} className={`mt-1.5 text-sm ${dark ? 'text-white/50' : 'text-slate-500'}`}>
+        <p id={hintId} className={`mt-2 text-sm ${dark ? 'text-white/35' : 'text-slate-500'}`}>
           {hint}
         </p>
       ) : null}

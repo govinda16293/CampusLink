@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { updateProfileSchema } from '@campuslink/shared';
+import { AVATAR_MAX_BYTES, type updateProfileSchema } from '@campuslink/shared';
 import { prisma } from '../../db/prisma.js';
 import { AppError } from '../../lib/AppError.js';
 import {
@@ -54,4 +54,61 @@ export async function updateOwnProfile(userId: string, input: UpdateProfileInput
     // The token verified but the row is gone — a deleted account holding a live JWT.
     throw AppError.unauthorized('Your account no longer exists');
   }
+}
+
+/**
+ * Stores a student's avatar.
+ *
+ * The client resizes and crops before sending, so the payload arriving here is already small.
+ * The size is re-checked anyway — a client-side cap is a convenience, never a limit — and the
+ * media type is taken from the data URL prefix that the Zod schema has already constrained to
+ * JPEG, PNG or WebP. SVG is deliberately not accepted: it can carry script, and it would be
+ * served straight back to a browser.
+ */
+export async function setOwnAvatar(userId: string, dataUrl: string) {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/.exec(dataUrl);
+  if (!match) throw AppError.badRequest('Upload a JPEG, PNG or WebP image');
+
+  const [, mimeType, base64] = match;
+  const bytes = Buffer.from(base64!, 'base64');
+
+  if (bytes.length === 0) throw AppError.badRequest('That image appears to be empty');
+  if (bytes.length > AVATAR_MAX_BYTES) {
+    throw AppError.badRequest('That image is too large — try a smaller one');
+  }
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      photoData: base64,
+      photoMimeType: mimeType,
+      photoUpdatedAt: new Date(),
+    },
+  });
+
+  return toPrivateUserDTO(user);
+}
+
+export async function removeOwnAvatar(userId: string) {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { photoData: null, photoMimeType: null, photoUpdatedAt: null },
+  });
+  return toPrivateUserDTO(user);
+}
+
+/** The raw avatar bytes, for the endpoint that serves them to an <img> tag. */
+export async function getAvatar(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { photoData: true, photoMimeType: true, photoUpdatedAt: true },
+  });
+
+  if (!user?.photoData || !user.photoMimeType) throw AppError.notFound('No photo');
+
+  return {
+    buffer: Buffer.from(user.photoData, 'base64'),
+    mimeType: user.photoMimeType,
+    updatedAt: user.photoUpdatedAt ?? new Date(0),
+  };
 }

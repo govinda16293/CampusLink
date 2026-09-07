@@ -2,6 +2,20 @@ import type { User } from '@prisma/client';
 import { profileCompleteness, missingProfileFields } from '../domain/profileCompleteness.js';
 
 /**
+ * Where a student's avatar can be fetched, or null if they have not uploaded one.
+ *
+ * The bytes never travel in a DTO — a feed of twenty goal cards would otherwise inline twenty
+ * images into one JSON response. The `v` parameter is the upload timestamp, which busts the
+ * browser cache the moment someone changes their photo while letting it cache indefinitely
+ * otherwise.
+ */
+export function photoUrlFor(user: User): string | null {
+  if (!user.photoData) return null;
+  const version = user.photoUpdatedAt?.getTime() ?? 0;
+  return `/api/users/${user.id}/photo?v=${version}`;
+}
+
+/**
  * Turns database rows into the shapes the API is allowed to return.
  *
  * Nothing else in the codebase may put a User on a response. Routing every user through here
@@ -27,7 +41,7 @@ export function toPrivateUserDTO(user: User) {
     branch: user.branch,
     year: user.year,
     gender: user.gender,
-    photoUrl: user.photoUrl,
+    photoUrl: photoUrlFor(user),
     interests,
     role: user.role,
     reliabilityScore: user.reliabilityScore,
@@ -52,7 +66,7 @@ export function toPublicUserDTO(user: User) {
     name: user.name,
     branch: user.branch,
     year: user.year,
-    photoUrl: user.photoUrl,
+    photoUrl: photoUrlFor(user),
     interests: splitInterests(user.interests),
     reliabilityScore: user.reliabilityScore,
     goalsCompleted: user.goalsCompleted,

@@ -17,4 +17,9 @@ export const usersRouter = Router();
 
 usersRouter.get('/users/me', requireAuth, usersController.getMe);
 usersRouter.patch('/users/me', requireAuth, usersController.updateMe);
+usersRouter.post('/users/me/photo', requireAuth, usersController.uploadAvatar);
+usersRouter.delete('/users/me/photo', requireAuth, usersController.deleteAvatar);
+
+// Declared before /users/:id so the id route does not swallow it.
+usersRouter.get('/users/:id/photo', usersController.getAvatarBytes);
 usersRouter.get('/users/:id', requireAuth, usersController.getById);

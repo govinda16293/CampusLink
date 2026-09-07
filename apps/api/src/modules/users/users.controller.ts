@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { updateProfileSchema } from '@campuslink/shared';
+import { avatarUploadSchema, updateProfileSchema } from '@campuslink/shared';
 import { AppError } from '../../lib/AppError.js';
 import * as usersService from './users.service.js';
 
@@ -29,4 +29,35 @@ export async function getById(req: Request, res: Response) {
   }
 
   res.json({ user: await usersService.getPublicProfile(String(req.params.id)) });
+}
+
+export async function uploadAvatar(req: Request, res: Response) {
+  if (!req.auth) throw AppError.unauthorized();
+  const { dataUrl } = avatarUploadSchema.parse(req.body);
+  res.json({ user: await usersService.setOwnAvatar(req.auth.userId, dataUrl) });
+}
+
+export async function deleteAvatar(req: Request, res: Response) {
+  if (!req.auth) throw AppError.unauthorized();
+  res.json({ user: await usersService.removeOwnAvatar(req.auth.userId) });
+}
+
+/**
+ * Serves the avatar bytes.
+ *
+ * Unauthenticated, because a browser cannot attach a bearer token to an `<img src>` and fetching
+ * every avatar through JavaScript would defeat HTTP caching on a feed. The id is a cuid, so the
+ * URL is unguessable, and an avatar is the least sensitive thing a profile holds. If this ever
+ * needs tightening the answer is signed, expiring URLs rather than moving it behind requireAuth.
+ */
+export async function getAvatarBytes(req: Request, res: Response) {
+  const { buffer, mimeType, updatedAt } = await usersService.getAvatar(String(req.params.id));
+
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('Content-Length', String(buffer.length));
+  res.setHeader('Last-Modified', updatedAt.toUTCString());
+  // Safe to cache hard: the URL carries an upload-timestamp parameter, so a new photo is a new
+  // URL. `private` keeps it out of shared proxy caches.
+  res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+  res.send(buffer);
 }

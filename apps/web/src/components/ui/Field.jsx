@@ -36,7 +36,10 @@ export function Field({
     <div className={className}>
       <label
         htmlFor={id}
-        className={glass ? 'sr-only' : 'block text-sm font-medium text-slate-700'}
+        className={[
+          glass ? 'sr-only' : 'block text-sm font-medium',
+          glass ? '' : dark ? 'text-white/70' : 'text-slate-700',
+        ].join(' ')}
       >
         {label}
       </label>
@@ -114,7 +117,7 @@ export function Field({
       ) : hint ? (
         <p
           id={hintId}
-          className={`mt-1.5 text-sm ${glass || dark ? 'text-white/50' : 'text-slate-500'}`}
+          className={`mt-2 text-sm ${glass || dark ? 'text-white/35' : 'text-slate-500'}`}
         >
           {hint}
         </p>
