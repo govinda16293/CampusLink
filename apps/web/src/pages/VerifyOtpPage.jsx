@@ -8,6 +8,7 @@ import { AuthLayout } from '../components/ui/AuthLayout';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
+import { KeyIcon } from '../components/ui/icons';
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
@@ -58,11 +59,13 @@ export function VerifyOtpPage() {
       title="Check your email"
       subtitle={`We sent a ${OTP_LENGTH}-digit code to ${email}. It expires in ${OTP_TTL_MINUTES} minutes.`}
     >
-      <form onSubmit={form.handleSubmit} className="space-y-5" noValidate>
+      <form onSubmit={form.handleSubmit} className="space-y-4" noValidate>
         <Alert tone="error">{form.formError?.message}</Alert>
         <Alert tone="info">{resendState.message}</Alert>
 
         <Field
+          variant="glass"
+          icon={KeyIcon}
           label="Verification code"
           name="code"
           type="text"
@@ -71,7 +74,7 @@ export function VerifyOtpPage() {
           maxLength={OTP_LENGTH}
           placeholder={'0'.repeat(OTP_LENGTH)}
           autoFocus
-          className="[&_input]:text-center [&_input]:text-lg [&_input]:tracking-[0.4em]"
+          className="[&_input]:text-center [&_input]:text-lg [&_input]:tracking-[0.5em]"
           value={form.values.code}
           // Strip anything non-numeric as it is typed, so pasting "123 456" still works.
           onChange={(event) =>
@@ -80,12 +83,17 @@ export function VerifyOtpPage() {
           error={form.fieldErrors.code}
         />
 
-        <Button type="submit" loading={form.submitting} className="w-full">
+        <Button type="submit" loading={form.submitting} withArrow className="mt-2 w-full">
           {form.submitting ? 'Verifying…' : 'Verify and continue'}
         </Button>
 
         <div className="text-center">
-          <Button variant="ghost" onClick={handleResend} disabled={resendState.cooldown > 0}>
+          <Button
+            variant="ghostLight"
+            onClick={handleResend}
+            disabled={resendState.cooldown > 0}
+            className="text-sm"
+          >
             {resendState.cooldown > 0
               ? `Resend code in ${resendState.cooldown}s`
               : "Didn't get it? Resend code"}
@@ -93,9 +101,9 @@ export function VerifyOtpPage() {
         </div>
       </form>
 
-      <p className="mt-6 border-t border-slate-200 pt-4 text-xs text-slate-500">
+      <p className="mt-6 border-t border-white/20 pt-4 text-xs text-white/65">
         Developing locally? The code is printed in the terminal running{' '}
-        <code className="font-mono">npm run dev</code> — no real email is sent.
+        <code className="font-mono text-white/85">npm run dev</code> — no real email is sent.
       </p>
     </AuthLayout>
   );
