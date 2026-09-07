@@ -74,6 +74,67 @@ export const GENDER_PREFERENCE = {
   FEMALE_ONLY: 'FEMALE_ONLY',
 };
 
+/**
+ * Degree programmes, as listed on a Thapar student record.
+ *
+ * Keys are the official codes where the programme has one; the remaining few are derived from
+ * the programme name, since they are only ever used as stable database values — the label below
+ * is what a student actually reads. Step 10 scores "same branch" as a matching signal, which is
+ * why this is an enum rather than a free-text field: "CSE" and "Computer Science" typed by two
+ * students would never match.
+ */
+export const BRANCH = {
+  COE: 'COE',
+  CSE: 'CSE',
+  COBS: 'COBS',
+  AIML: 'AIML',
+  ECE: 'ECE',
+  ENC: 'ENC',
+  EE: 'EE',
+  EEC: 'EEC',
+  EIC: 'EIC',
+  RAI: 'RAI',
+  EVD: 'EVD',
+  ME: 'ME',
+  MECHATRONICS: 'MECHATRONICS',
+  CHEMICAL: 'CHEMICAL',
+  CIVIL: 'CIVIL',
+  CIVIL_COMPUTER_APPLICATIONS: 'CIVIL_COMPUTER_APPLICATIONS',
+  BIOTECHNOLOGY: 'BIOTECHNOLOGY',
+  BIOMEDICAL: 'BIOMEDICAL',
+  CSE_DERA_BASSI: 'CSE_DERA_BASSI',
+  OTHER: 'OTHER',
+};
+
+/** Full programme names, shown in the profile dropdown. */
+export const BRANCH_LABEL = {
+  COE: 'Computer Engineering (COE)',
+  CSE: 'Computer Science and Engineering (CSE)',
+  COBS: 'Computer Science and Business Systems (COBS)',
+  AIML: 'Artificial Intelligence and Machine Learning (AIML)',
+  ECE: 'Electronics and Communication Engineering (ECE)',
+  ENC: 'Electronics and Computer Engineering (ENC)',
+  EE: 'Electrical Engineering (EE)',
+  EEC: 'Electrical and Computer Engineering (EEC)',
+  EIC: 'Electronics (Instrumentation and Control) Engineering (EIC)',
+  RAI: 'Robotics and Artificial Intelligence (RAI)',
+  EVD: 'Electronics Engineering (VLSI Design and Technology) (EVD)',
+  ME: 'Mechanical Engineering (ME)',
+  MECHATRONICS: 'Mechatronics Engineering',
+  CHEMICAL: 'Chemical Engineering',
+  CIVIL: 'Civil Engineering',
+  CIVIL_COMPUTER_APPLICATIONS: 'Civil Engineering with Computer Applications',
+  BIOTECHNOLOGY: 'Biotechnology',
+  BIOMEDICAL: 'Biomedical Engineering',
+  CSE_DERA_BASSI: 'Computer Science and Engineering (Dera Bassi)',
+  // Not on the official list. Kept so a postgraduate or exchange student has something to pick
+  // rather than leaving the field blank, which would read as an unfinished profile.
+  OTHER: 'Other programme',
+};
+
+/** Years of study offered. */
+export const STUDY_YEARS = [1, 2, 3, 4, 5];
+
 export const USER_ROLE = {
   STUDENT: 'STUDENT',
   ADMIN: 'ADMIN',
@@ -87,3 +148,4 @@ export const LOBBY_STATUSES = Object.values(LOBBY_STATUS);
 export const GENDERS = Object.values(GENDER);
 export const GENDER_PREFERENCES = Object.values(GENDER_PREFERENCE);
 export const USER_ROLES = Object.values(USER_ROLE);
+export const BRANCHES = Object.values(BRANCH);

@@ -70,6 +70,16 @@ export const useAuthStore = create((set) => ({
     set({ status: 'authenticated', user, token });
   },
 
+  /**
+   * Replaces the cached user after a profile save.
+   *
+   * The PATCH response already contains the updated profile, so the header and profile page
+   * refresh from it directly rather than re-fetching /users/me.
+   */
+  updateUser(user) {
+    set({ user });
+  },
+
   logout() {
     setAuthToken(null);
     writeStoredToken(null);

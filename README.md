@@ -134,7 +134,7 @@ UI → test) and is left runnable and demoable.
 
 - [x] **Step 0** — Scaffold, tooling, health check, CI
 - [x] **Step 1** — Auth: college-email signup, OTP verification, login, JWT
-- [ ] **Step 2** — Profiles
+- [x] **Step 2** — Profiles: branch, year, gender, interests, completeness score
 - [ ] **Step 3** — Post a goal + public feed (with the anonymity serializer)
 - [ ] **Step 4** — Request to join + poster approval (the core state machine)
 
@@ -160,6 +160,24 @@ be raised later without locking anyone out.
 **Auth endpoints do not leak who has an account.** A wrong password and an unknown email return
 the identical 401; resending a passcode returns the same message whether or not the address
 exists. Otherwise either endpoint becomes a way to test which students have signed up.
+
+**Profiles cannot be self-promoted.** `PATCH /users/me` is guarded twice against mass assignment:
+the Zod schema is `.strict()` and has no `role`, `isVerified` or `reliabilityScore` key, and the
+service builds its write from an explicit field allow-list rather than spreading the input. The
+trust layer is only worth something if a student cannot set their own reliability score, so it is
+defended in two places and asserted by test.
+
+**Known limitation — one mailbox, many accounts.** Alias addresses (`name+tag@thapar.edu`, or
+extra dots in the local part) are accepted as separate accounts even though Google delivers them
+all to one inbox, so a student could hold several verified accounts and shed a bad reliability
+score by re-registering. The `@thapar.edu` domain check is the only identity guarantee. Accepted
+deliberately for a 15–20 person pilot; the fix, if ever needed, is a canonical-email unique column
+that strips the tag and dots.
+
+**Descoped from the proposal.** Hostel block and hostel/proximity-based matching (§3.3, Matching
+Intelligence) were cut as bulk that did not earn its place — with a pilot confined to one batch,
+proximity had almost nothing to discriminate on. Step 10 keeps interest, branch and past-category
+scoring.
 
 **Enum columns are strings.** Prisma does not support native enums on SQLite, so enumerated
 columns are `String` and their allowed values live in `packages/shared/src/enums.js`, enforced by
