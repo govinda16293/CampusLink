@@ -7,6 +7,7 @@ import { AuthLayout } from '../components/ui/AuthLayout';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
+import { LockIcon, MailIcon } from '../components/ui/icons';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -28,24 +29,28 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Sign in"
+      title="Welcome back"
+      subtitle="Sign in to continue to CampusLink"
       footer={
         <>
-          New here?{' '}
-          <Link to="/signup" className="font-semibold text-brand-700 hover:text-brand-600">
-            Create an account
+          Don&apos;t have an account?{' '}
+          <Link
+            to="/signup"
+            className="font-semibold text-brand-300 underline underline-offset-4 hover:text-brand-200"
+          >
+            Create one
           </Link>
         </>
       }
     >
-      <form onSubmit={form.handleSubmit} className="space-y-5" noValidate>
+      <form onSubmit={form.handleSubmit} className="space-y-4" noValidate>
         <Alert tone="error">
           {form.formError?.message}
           {needsVerification && (
             <Link
               to="/verify"
               state={{ email: form.values.email }}
-              className="mt-2 block font-semibold underline"
+              className="mt-2 block font-semibold underline underline-offset-4"
             >
               Verify your email now
             </Link>
@@ -53,7 +58,10 @@ export function LoginPage() {
         </Alert>
 
         <Field
+          variant="glass"
+          icon={MailIcon}
           label="College email"
+          placeholder="Email address"
           name="email"
           type="email"
           autoComplete="email"
@@ -63,7 +71,10 @@ export function LoginPage() {
         />
 
         <Field
+          variant="glass"
+          icon={LockIcon}
           label="Password"
+          placeholder="Password"
           name="password"
           type="password"
           autoComplete="current-password"
@@ -72,8 +83,18 @@ export function LoginPage() {
           error={form.fieldErrors.password}
         />
 
-        <Button type="submit" loading={form.submitting} className="w-full">
-          {form.submitting ? 'Signing in…' : 'Sign in'}
+        <div className="flex justify-end pt-1">
+          <Link
+            to="/verify"
+            state={{ email: form.values.email }}
+            className="text-sm text-white/75 underline-offset-4 hover:text-white hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
+        <Button type="submit" loading={form.submitting} withArrow className="mt-2 w-full">
+          {form.submitting ? 'Signing in…' : 'Sign In'}
         </Button>
       </form>
     </AuthLayout>

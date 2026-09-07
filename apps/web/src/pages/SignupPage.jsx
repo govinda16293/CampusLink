@@ -6,6 +6,7 @@ import { AuthLayout } from '../components/ui/AuthLayout';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
+import { LockIcon, MailIcon, UserIcon } from '../components/ui/icons';
 
 export function SignupPage() {
   const navigate = useNavigate();
@@ -24,21 +25,27 @@ export function SignupPage() {
   return (
     <AuthLayout
       title="Create your account"
-      subtitle={`CampusLink is open to students with an @${ALLOWED_EMAIL_DOMAIN} email.`}
+      subtitle={`Open to students with an @${ALLOWED_EMAIL_DOMAIN} email`}
       footer={
         <>
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-brand-700 hover:text-brand-600">
+          <Link
+            to="/login"
+            className="font-semibold text-brand-300 underline underline-offset-4 hover:text-brand-200"
+          >
             Sign in
           </Link>
         </>
       }
     >
-      <form onSubmit={form.handleSubmit} className="space-y-5" noValidate>
+      <form onSubmit={form.handleSubmit} className="space-y-4" noValidate>
         <Alert tone="error">{form.formError?.message}</Alert>
 
         <Field
+          variant="glass"
+          icon={UserIcon}
           label="Full name"
+          placeholder="Full name"
           name="name"
           type="text"
           autoComplete="name"
@@ -48,29 +55,34 @@ export function SignupPage() {
         />
 
         <Field
+          variant="glass"
+          icon={MailIcon}
           label="College email"
+          placeholder={`yourname@${ALLOWED_EMAIL_DOMAIN}`}
           name="email"
           type="email"
           autoComplete="email"
-          placeholder={`yourname@${ALLOWED_EMAIL_DOMAIN}`}
           value={form.values.email}
           onChange={form.handleChange}
           error={form.fieldErrors.email}
         />
 
         <Field
+          variant="glass"
+          icon={LockIcon}
           label="Password"
+          placeholder="Password"
           name="password"
           type="password"
           autoComplete="new-password"
-          hint="At least 8 characters."
+          hint={form.fieldErrors.password ? undefined : 'At least 8 characters.'}
           value={form.values.password}
           onChange={form.handleChange}
           error={form.fieldErrors.password}
         />
 
-        <Button type="submit" loading={form.submitting} className="w-full">
-          {form.submitting ? 'Creating account…' : 'Create account'}
+        <Button type="submit" loading={form.submitting} withArrow className="mt-2 w-full">
+          {form.submitting ? 'Creating account…' : 'Create Account'}
         </Button>
       </form>
     </AuthLayout>
