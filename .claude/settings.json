@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(curl -s -o /dev/null http://localhost:4000/api/health)",
+      "Bash(curl -s -o /dev/null http://localhost:5173/)",
+      "Bash(break)",
+      "Bash(curl -s http://localhost:4000/api/health)",
+      "Bash(pkill -f \"concurrently -n api,web\")",
+      "Bash(pkill -f \"tsx watch src/index.ts\")",
+      "Bash(pkill -f \"node_modules/.bin/vite\")",
+      "Bash(lsof -ti:4000,5173)",
+      "Bash(npm pkg *)",
+      "Bash(npm audit *)",
+      "Bash(curl -s -o /dev/null http://localhost:5173/api/health)",
+      "Bash(curl -s http://localhost:5173/api/health)",
+      "Bash(curl -s http://localhost:5173/api/nope)",
+      "Bash(node -p \"require\\('./node_modules/express/package.json'\\).version\")",
+      "Bash(git add *)",
+      "Bash(git rm *)"
+    ]
+  }
+}

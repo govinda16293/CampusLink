@@ -1,0 +1,87 @@
+// CampusLink data model.
+//
+// This file is the executable version of the class diagram in the UML document
+// (User / Goal / Request / Lobby), extended with the entities the trust & safety layer needs.
+//
+// PORTABILITY NOTE — read before adding fields:
+// Development runs on SQLite (no local Postgres or Docker on the team's machines); production
+// runs on managed PostgreSQL. Prisma does not support native `enum` blocks on SQLite, so every
+// enumerated column here is a `String` whose allowed values live in `packages/shared/src/enums.js`
+// and are enforced by Zod at the API boundary. That keeps this schema byte-identical across both
+// databases — switching is a one-line change to `provider` plus the DATABASE_URL env var.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Models are introduced feature by feature, alongside the endpoints that use them:
+//   Step 1 — User, OtpToken   (below)
+//   Step 3 — Goal
+//   Step 4 — Request
+// (Later steps add Lobby, LobbyMember, Message, Rating, Report, Block, AuditLog.)
+
+/// A verified member of the campus. Every other entity hangs off this one.
+model User {
+  id String @id @default(cuid())
+
+  // --- Identity ---
+  /// Always stored lowercased. Restricted to the college domain at the API boundary, which is
+  /// what keeps the platform to actual students (proposal §3.3).
+  email        String  @unique
+  passwordHash String
+  name         String
+
+  // --- Verification ---
+  /// False until the emailed OTP is confirmed. Unverified users cannot post or request.
+  isVerified Boolean   @default(false)
+  verifiedAt DateTime?
+
+  // --- Profile (filled out in Step 2) ---
+  branch      String?
+  /// Year of study, 1-5.
+  year        Int?
+  /// One of GENDER in packages/shared/src/enums.js. Drives the gender-preference filter.
+  gender      String  @default("UNDISCLOSED")
+  hostelBlock String?
+  photoUrl    String?
+  /// Comma-separated interest tags. SQLite has no array type, so the API splits and joins it;
+  /// this becomes a native String[] if and when the project moves to PostgreSQL only.
+  interests   String  @default("")
+
+  // --- Trust & safety ---
+  /// One of USER_ROLE in packages/shared/src/enums.js.
+  role String @default("STUDENT")
+  /// Denormalised, recomputed on lifecycle events (Step 9) rather than derived on every read,
+  /// because it is rendered on every single feed card.
+  reliabilityScore Int @default(100)
+  goalsCompleted   Int @default(0)
+  noShowCount      Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+/// A one-time passcode emailed during signup.
+///
+/// Only the hash of the code is stored — a leaked database should not let anyone verify as
+/// somebody else. Rows are single-use (`consumedAt`) and short-lived (`expiresAt`).
+model OtpToken {
+  id        String    @id @default(cuid())
+  email     String
+  codeHash  String
+  purpose   String    @default("SIGNUP")
+  expiresAt DateTime
+  consumedAt DateTime?
+  /// Guards against brute-forcing a 6-digit code.
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  @@index([email, purpose])
+}
