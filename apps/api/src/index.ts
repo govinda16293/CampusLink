@@ -1,12 +1,14 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { prisma } from './db/prisma.js';
+import { verifyMailTransport } from './services/mail/index.js';
 
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {
   console.log(`CampusLink API listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
   console.log(`Health check: http://localhost:${env.PORT}/api/health`);
+  void verifyMailTransport();
 });
 
 /**
