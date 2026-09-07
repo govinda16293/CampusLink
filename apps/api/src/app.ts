@@ -6,6 +6,7 @@ import { corsOrigins, isTest } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { authRouter } from './modules/auth/auth.route.js';
 import { healthRouter } from './modules/health/health.route.js';
+import { usersRouter } from './modules/users/users.route.js';
 
 /**
  * Builds the Express application.
@@ -33,6 +34,7 @@ export function createApp() {
   // Feature routers are mounted under /api as they are built.
   app.use('/api', healthRouter);
   app.use('/api', authRouter);
+  app.use('/api', usersRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

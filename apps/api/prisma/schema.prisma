@@ -47,7 +47,6 @@ model User {
   year        Int?
   /// One of GENDER in packages/shared/src/enums.js. Drives the gender-preference filter.
   gender      String  @default("UNDISCLOSED")
-  hostelBlock String?
   photoUrl    String?
   /// Comma-separated interest tags. SQLite has no array type, so the API splits and joins it;
   /// this becomes a native String[] if and when the project moves to PostgreSQL only.
