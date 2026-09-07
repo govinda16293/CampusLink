@@ -5,6 +5,7 @@ import { signAccessToken } from '../../lib/jwt.js';
 import { generateOtpCode, hashOtpCode, otpMatches } from '../../lib/otp.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
 import { mailSender } from '../../services/mail/index.js';
+import { verificationEmail } from '../../services/mail/templates.js';
 import { toPrivateUserDTO } from '../../serializers/user.serializer.js';
 
 const SIGNUP_PURPOSE = 'SIGNUP';
@@ -27,18 +28,26 @@ async function issueOtp(email: string, name: string): Promise<void> {
     }),
   ]);
 
-  await mailSender.send({
-    to: email,
-    subject: `Your CampusLink verification code: ${code}`,
-    text: [
-      `Hi ${name},`,
-      '',
-      `Your CampusLink verification code is ${code}.`,
-      `It expires in ${OTP_TTL_MINUTES} minutes.`,
-      '',
-      "If you didn't request this, you can ignore this email.",
-    ].join('\n'),
-  });
+  const { text, html } = verificationEmail(name, code);
+
+  try {
+    await mailSender.send({
+      to: email,
+      subject: `${code} is your CampusLink verification code`,
+      text,
+      html,
+    });
+  } catch (error) {
+    // The passcode row is already committed, so a delivery failure would otherwise leave the
+    // user staring at a code-entry screen for a code that was never sent. Remove it and say so.
+    console.error(`[mail] failed to deliver passcode to ${email}`, error);
+    await prisma.otpToken.deleteMany({ where: { email, purpose: SIGNUP_PURPOSE } });
+    throw new AppError(
+      502,
+      'MAIL_DELIVERY_FAILED',
+      'We could not send the verification email. Please try again in a moment.',
+    );
+  }
 }
 
 /**

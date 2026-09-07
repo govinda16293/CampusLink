@@ -87,8 +87,32 @@ running `npm run dev`, in a boxed block that is easy to spot among the request l
 ```
 
 Signup only accepts `@thapar.edu` addresses, but any local-part works — `test1@thapar.edu` is
-fine. Swapping in a real provider for the demo means adding one class next to
-`ConsoleMailSender` and one value to `MAIL_TRANSPORT`; nothing in the auth service changes.
+fine.
+
+### Sending real email
+
+Set `MAIL_TRANSPORT=smtp` and fill in the `SMTP_*` variables in `apps/api/.env`. Any SMTP server
+works — Gmail, Outlook, Brevo, SendGrid, Mailtrap — only the values differ.
+
+For Gmail (including a `thapar.edu` Google account):
+
+1. Turn on 2-Step Verification — App Passwords are not offered until it is on:
+   <https://myaccount.google.com/signinoptions/two-step-verification>
+2. Create an App Password named "CampusLink": <https://myaccount.google.com/apppasswords>
+3. Paste the 16 characters into `SMTP_PASS` **without the spaces**, set `SMTP_USER` and
+   `MAIL_FROM` to the same address, and set `MAIL_TRANSPORT=smtp`.
+
+Your ordinary Google password will not work — it must be an App Password.
+
+Two guards make a misconfiguration obvious instead of silent:
+
+- The server **refuses to start** if `MAIL_TRANSPORT=smtp` and any of host/user/password is
+  missing, naming the variable.
+- On boot it connects to the SMTP server and logs `connection OK`, or logs the provider's actual
+  error. A wrong password would otherwise only show up as a student who never gets a code.
+
+If delivery fails during signup the passcode row is deleted and the API returns
+`MAIL_DELIVERY_FAILED`, so nobody is left waiting for a code that was never sent.
 
 ## Scripts
 

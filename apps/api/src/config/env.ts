@@ -22,13 +22,45 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
 
   // --- Email / OTP ---
-  // `console` prints the passcode to the terminal instead of sending mail, so signup works in
-  // development without any mail provider credentials.
-  MAIL_TRANSPORT: z.enum(['console']).default('console'),
+  // `console` prints the passcode to the terminal, so signup works with no credentials at all.
+  // `smtp` sends real mail through any SMTP server (Gmail, Outlook, Brevo, SendGrid, Mailtrap).
+  MAIL_TRANSPORT: z.enum(['console', 'smtp']).default('console'),
   MAIL_FROM: z.string().default('CampusLink <no-reply@campuslink.local>'),
+
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  // Port 465 speaks TLS from the first byte; 587 starts plaintext and upgrades via STARTTLS.
+  // Getting this wrong is the most common cause of a connection that just hangs.
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
 });
 
-const parsed = envSchema.safeParse(process.env);
+/**
+ * SMTP credentials are only required when SMTP is actually the chosen transport.
+ *
+ * Checking this at boot rather than at send time matters: the alternative is a signup that
+ * appears to succeed and silently never delivers a passcode, which is far harder to diagnose
+ * than a server that refuses to start and says exactly which variable is missing.
+ */
+const configSchema = envSchema.superRefine((config, ctx) => {
+  if (config.MAIL_TRANSPORT !== 'smtp') return;
+
+  for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'] as const) {
+    if (!config[key]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `${key} is required when MAIL_TRANSPORT=smtp`,
+      });
+    }
+  }
+});
+
+const parsed = configSchema.safeParse(process.env);
 
 if (!parsed.success) {
   const issues = parsed.error.issues
