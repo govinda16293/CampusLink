@@ -6,7 +6,9 @@ import { AppLayout } from './components/AppLayout';
 import { SignupPage } from './pages/SignupPage';
 import { VerifyOtpPage } from './pages/VerifyOtpPage';
 import { LoginPage } from './pages/LoginPage';
-import { HomePage } from './pages/HomePage';
+import { FeedPage } from './pages/FeedPage';
+import { CreateGoalPage } from './pages/CreateGoalPage';
+import { GoalDetailPage } from './pages/GoalDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { EditProfilePage } from './pages/EditProfilePage';
 
@@ -31,7 +33,9 @@ export default function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<FeedPage />} />
+          <Route path="/goals/new" element={<CreateGoalPage />} />
+          <Route path="/goals/:id" element={<GoalDetailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/edit" element={<EditProfilePage />} />
           {/* Declared after /profile/edit so "edit" is never captured as a user id. */}
