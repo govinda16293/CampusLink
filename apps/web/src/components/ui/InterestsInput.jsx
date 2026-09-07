@@ -8,7 +8,8 @@ import { MAX_INTEREST_LENGTH, MAX_INTERESTS } from '@campuslink/shared';
  * here as well as on the server — catching it in the UI means a student sees why nothing happened
  * instead of watching their tag silently vanish on save.
  */
-export function InterestsInput({ label, value = [], onChange, error, hint }) {
+export function InterestsInput({ label, value = [], onChange, error, hint, variant = 'solid' }) {
+  const dark = variant === 'dark';
   const [draft, setDraft] = useState('');
   const [localError, setLocalError] = useState(null);
 
@@ -52,24 +53,42 @@ export function InterestsInput({ label, value = [], onChange, error, hint }) {
 
   return (
     <div>
-      <label htmlFor="interest-draft" className="block text-sm font-medium text-slate-700">
+      <label
+        htmlFor="interest-draft"
+        className={`block text-sm font-medium ${dark ? 'text-white/70' : 'text-slate-700'}`}
+      >
         {label}
       </label>
 
-      <div className="mt-1.5 rounded-xl bg-white p-2 shadow-sm ring-1 ring-inset ring-slate-300 focus-within:ring-2 focus-within:ring-brand-600">
+      <div
+        className={[
+          'mt-1.5 rounded-xl p-2 shadow-sm ring-1 ring-inset focus-within:ring-2',
+          dark
+            ? 'bg-white/6 ring-white/12 focus-within:ring-amber-400/70'
+            : 'bg-white ring-slate-300 focus-within:ring-brand-600',
+        ].join(' ')}
+      >
         {value.length > 0 && (
           <ul className="mb-2 flex flex-wrap gap-2">
             {value.map((interest) => (
               <li
                 key={interest}
-                className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 py-1 pl-3 pr-1.5 text-sm font-medium text-brand-700"
+                className={[
+                  'inline-flex items-center gap-1.5 rounded-full py-1 pl-3 pr-1.5 text-sm font-medium',
+                  dark ? 'bg-amber-400/15 text-amber-200' : 'bg-brand-50 text-brand-700',
+                ].join(' ')}
               >
                 {interest}
                 <button
                   type="button"
                   onClick={() => onChange(value.filter((i) => i !== interest))}
                   aria-label={`Remove ${interest}`}
-                  className="rounded-full p-0.5 text-brand-500 transition-colors hover:bg-brand-100 hover:text-brand-800"
+                  className={[
+                    'rounded-full p-0.5 transition-colors',
+                    dark
+                      ? 'text-amber-300/70 hover:bg-amber-400/20 hover:text-amber-100'
+                      : 'text-brand-500 hover:bg-brand-100 hover:text-brand-800',
+                  ].join(' ')}
                 >
                   <svg
                     viewBox="0 0 20 20"
@@ -99,14 +118,19 @@ export function InterestsInput({ label, value = [], onChange, error, hint }) {
           onBlur={addInterest}
           maxLength={MAX_INTEREST_LENGTH}
           placeholder={value.length ? 'Add another…' : 'gym, chess, badminton…'}
-          className="w-full border-0 bg-transparent px-2 py-1.5 text-slate-900 placeholder:text-slate-400 focus:outline-none"
+          className={[
+            'w-full border-0 bg-transparent px-2 py-1.5 focus:outline-none',
+            dark
+              ? 'text-white placeholder:text-white/40'
+              : 'text-slate-900 placeholder:text-slate-400',
+          ].join(' ')}
         />
       </div>
 
       {message ? (
-        <p className="mt-1.5 text-sm text-red-600">{message}</p>
+        <p className={`mt-1.5 text-sm ${dark ? 'text-red-300' : 'text-red-600'}`}>{message}</p>
       ) : hint ? (
-        <p className="mt-1.5 text-sm text-slate-500">{hint}</p>
+        <p className={`mt-1.5 text-sm ${dark ? 'text-white/50' : 'text-slate-500'}`}>{hint}</p>
       ) : null}
     </div>
   );

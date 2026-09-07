@@ -55,20 +55,25 @@ export function EditProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">Edit your profile</h1>
-      <p className="mt-1 text-sm text-slate-600">
+      <h1 className="text-3xl font-bold tracking-tight text-white">Edit your profile</h1>
+      <p className="mt-2 text-sm text-white/60">
         Branch and interests are what we use to suggest goals worth joining.
       </p>
 
-      <form onSubmit={form.handleSubmit} className="mt-8 space-y-6" noValidate>
-        <Alert variant="solid" tone="error">
+      <form
+        onSubmit={form.handleSubmit}
+        className="frost-panel mt-8 space-y-6 rounded-3xl p-7 sm:p-8"
+        noValidate
+      >
+        <Alert variant="dark" tone="error">
           {form.formError?.message}
         </Alert>
-        <Alert variant="solid" tone="success">
+        <Alert variant="dark" tone="success">
           {saved ? 'Profile saved.' : null}
         </Alert>
 
         <Field
+          variant="dark"
           label="Full name"
           name="name"
           type="text"
@@ -79,6 +84,7 @@ export function EditProfilePage() {
         />
 
         <Select
+          variant="dark"
           label="Branch"
           name="branch"
           placeholder="Select your programme"
@@ -89,6 +95,7 @@ export function EditProfilePage() {
         />
 
         <Select
+          variant="dark"
           label="Year of study"
           name="year"
           placeholder="Select your year"
@@ -101,6 +108,7 @@ export function EditProfilePage() {
         />
 
         <Select
+          variant="dark"
           label="Gender"
           name="gender"
           hint="Used only for the gender filter on goals, where a poster restricts who can join."
@@ -111,6 +119,7 @@ export function EditProfilePage() {
         />
 
         <InterestsInput
+          variant="dark"
           label="Interests"
           value={form.values.interests}
           onChange={(interests) => {
@@ -122,10 +131,10 @@ export function EditProfilePage() {
         />
 
         <div className="flex gap-3 pt-2">
-          <Button type="submit" loading={form.submitting}>
+          <Button variant="amber" type="submit" loading={form.submitting}>
             {form.submitting ? 'Saving…' : 'Save profile'}
           </Button>
-          <Button variant="secondary" onClick={() => navigate('/profile')}>
+          <Button variant="darkGhost" onClick={() => navigate('/profile')}>
             Cancel
           </Button>
         </div>

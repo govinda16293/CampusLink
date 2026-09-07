@@ -23,6 +23,18 @@ const VARIANTS = {
 
   ghostLight: 'text-white/85 hover:text-white focus-visible:outline-white disabled:text-white/35',
 
+  // The signed-in app's primary action — the amber pill from the design.
+  amber: [
+    'bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20',
+    'hover:bg-amber-300 focus-visible:outline-amber-300 disabled:bg-amber-400/40 disabled:text-slate-950/50',
+  ].join(' '),
+
+  // Secondary action on a dark surface.
+  darkGhost: [
+    'bg-white/8 text-white ring-1 ring-inset ring-white/15',
+    'hover:bg-white/14 focus-visible:outline-white/60 disabled:text-white/35',
+  ].join(' '),
+
   // For the solid-background pages (home, and the profile screens in Step 2).
   secondary:
     'bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline-brand-600 disabled:text-slate-400',

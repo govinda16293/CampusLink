@@ -14,28 +14,28 @@ export function HomePage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
           Hey {user?.name?.split(' ')[0]}
         </h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-white/60">
           Post a goal, or join one someone else has posted.
         </p>
       </header>
 
       <ProfileNudge />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+      <section className="frost-panel rounded-3xl p-7">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
           Coming in Step 3
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-white/60">
           The public feed, filterable by these categories:
         </p>
-        <ul className="mt-3 flex flex-wrap gap-2">
+        <ul className="mt-4 flex flex-wrap gap-2">
           {GOAL_CATEGORIES.map((category) => (
             <li
               key={category}
-              className="rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-700"
+              className="rounded-full bg-amber-400/12 px-4 py-1.5 text-sm font-medium text-amber-200 ring-1 ring-inset ring-amber-300/20"
             >
               {GOAL_CATEGORY_LABEL[category]}
             </li>

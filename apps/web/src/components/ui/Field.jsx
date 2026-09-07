@@ -4,7 +4,8 @@ import { EyeIcon, EyeOffIcon } from './icons';
 /**
  * A labelled input with an optional leading icon and inline validation messaging.
  *
- * Two visual treatments: `glass` for the frosted auth card, `solid` for ordinary pages. Errors
+ * Three visual treatments: `glass` for the frosted auth card, `dark` for the signed-in app, and
+ * `solid` for light surfaces. Errors
  * are wired up with `aria-describedby` and `aria-invalid` rather than shown as loose red text,
  * so a screen reader announces the message with the field it belongs to.
  *
@@ -29,6 +30,7 @@ export function Field({
 
   const isPassword = type === 'password';
   const glass = variant === 'glass';
+  const dark = variant === 'dark';
 
   return (
     <div className={className}>
@@ -44,7 +46,7 @@ export function Field({
           <Icon
             className={[
               'pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2',
-              glass ? 'text-white/70' : 'text-slate-400',
+              glass || dark ? 'text-white/60' : 'text-slate-400',
             ].join(' ')}
           />
         )}
@@ -64,11 +66,21 @@ export function Field({
                   'ring-1 ring-inset ring-white/25 focus:ring-2 focus:ring-white/60',
                   error ? 'ring-red-300/70' : '',
                 ].join(' ')
-              : [
-                  'bg-white text-slate-900 shadow-sm placeholder:text-slate-400',
-                  'ring-1 ring-inset focus:ring-2 focus:ring-inset',
-                  error ? 'ring-red-400 focus:ring-red-500' : 'ring-slate-300 focus:ring-brand-600',
-                ].join(' '),
+              : dark
+                ? [
+                    'bg-white/6 text-white placeholder:text-white/40',
+                    'ring-1 ring-inset focus:ring-2',
+                    error
+                      ? 'ring-red-400/60 focus:ring-red-400'
+                      : 'ring-white/12 focus:ring-amber-400/70',
+                  ].join(' ')
+                : [
+                    'bg-white text-slate-900 shadow-sm placeholder:text-slate-400',
+                    'ring-1 ring-inset focus:ring-2 focus:ring-inset',
+                    error
+                      ? 'ring-red-400 focus:ring-red-500'
+                      : 'ring-slate-300 focus:ring-brand-600',
+                  ].join(' '),
             'focus:outline-none disabled:opacity-60',
           ].join(' ')}
           {...inputProps}
@@ -82,8 +94,8 @@ export function Field({
             aria-pressed={revealed}
             className={[
               'absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 transition-colors',
-              glass
-                ? 'text-white/70 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white'
+              glass || dark
+                ? 'text-white/60 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white'
                 : 'text-slate-400 hover:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600',
             ].join(' ')}
           >
@@ -93,11 +105,17 @@ export function Field({
       </div>
 
       {error ? (
-        <p id={errorId} className={`mt-1.5 text-sm ${glass ? 'text-red-200' : 'text-red-600'}`}>
+        <p
+          id={errorId}
+          className={`mt-1.5 text-sm ${glass || dark ? 'text-red-300' : 'text-red-600'}`}
+        >
           {error}
         </p>
       ) : hint ? (
-        <p id={hintId} className={`mt-1.5 text-sm ${glass ? 'text-white/65' : 'text-slate-500'}`}>
+        <p
+          id={hintId}
+          className={`mt-1.5 text-sm ${glass || dark ? 'text-white/50' : 'text-slate-500'}`}
+        >
           {hint}
         </p>
       ) : null}

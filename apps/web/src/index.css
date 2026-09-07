@@ -108,3 +108,70 @@ body,
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
 }
+
+/*
+ * ---------------------------------------------------------------------------------------------
+ * The signed-in application: dark charcoal with a warm amber glow.
+ * ---------------------------------------------------------------------------------------------
+ *
+ * Two visual zones on purpose. Signed-out screens (login, signup, verify) keep the campus
+ * photograph above — they are the front door, and a real Thapar photo says who this is for far
+ * better than an abstract glow. Everything behind the login uses the palette below.
+ *
+ * The backdrop is a gradient rather than an image: the reference supplied was a photograph of a
+ * monitor, complete with bezel and colour banding, which would have looked soft stretched across
+ * a desktop. Built in CSS it is pin-sharp at any size, reflows on a phone, and costs no bytes.
+ */
+.app-backdrop {
+  background-color: #0a0a0d;
+  background-image:
+    /* The warm core, sitting behind the avatar on the right. */
+    radial-gradient(
+      42% 40% at 76% 36%,
+      rgba(255, 146, 58, 0.62) 0%,
+      rgba(206, 74, 22, 0.34) 42%,
+      rgba(140, 48, 14, 0.12) 62%,
+      transparent 78%
+    ),
+    /* A cool lift in the top-left so the dark side is not a flat black. */
+    radial-gradient(90% 75% at 22% 12%, #1d1d24 0%, #101014 45%, #0a0a0d 100%);
+  background-attachment: fixed;
+}
+
+/*
+ * Frosted panels on the dark backdrop.
+ *
+ * Kept to a single `backdrop-filter` per panel — it is the expensive property in this design, and
+ * the proposal commits to running well on average student phones. Anyone who has asked their
+ * system for reduced transparency gets a solid panel instead.
+ */
+.frost-panel {
+  /* A dark translucent base, not a white one. Over the amber glow a white overlay turns the whole
+     panel orange and text loses contrast; a dark base lets the glow tint the panel while keeping
+     it readable — which is how the reference design reads. */
+  background:
+    linear-gradient(to bottom, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.02)),
+    linear-gradient(to bottom, rgb(16 16 21 / 0.62), rgb(16 16 21 / 0.72));
+  backdrop-filter: blur(28px) saturate(125%);
+  -webkit-backdrop-filter: blur(28px) saturate(125%);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow:
+    0 20px 60px rgb(0 0 0 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .frost-panel {
+    background: #16161b;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* The halo behind a profile photo, as in the design. Decorative only. */
+.avatar-halo {
+  box-shadow:
+    0 0 0 3px rgb(255 255 255 / 0.08),
+    0 0 40px 6px rgb(255 146 58 / 0.35),
+    0 0 90px 24px rgb(255 122 26 / 0.45);
+}

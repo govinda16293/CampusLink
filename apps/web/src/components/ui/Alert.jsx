@@ -10,6 +10,13 @@ const SOLID_TONES = {
   info: 'bg-brand-50 text-brand-700 ring-brand-100',
 };
 
+/** On the dark app backdrop. */
+const DARK_TONES = {
+  error: 'bg-red-500/15 text-red-200 ring-red-400/30',
+  success: 'bg-emerald-500/15 text-emerald-200 ring-emerald-400/30',
+  info: 'bg-amber-400/12 text-amber-100 ring-amber-300/25',
+};
+
 /**
  * Form-level messaging — errors belonging to the submission as a whole rather than to one field
  * ("incorrect email or password", "that code has expired").
@@ -24,7 +31,7 @@ export function Alert({ tone = 'info', variant = 'glass', children, className = 
   const hasContent = Array.isArray(children) ? children.some(Boolean) : Boolean(children);
   if (!hasContent) return null;
 
-  const palette = variant === 'glass' ? TONES : SOLID_TONES;
+  const palette = { glass: TONES, solid: SOLID_TONES, dark: DARK_TONES }[variant] ?? TONES;
 
   return (
     <div
