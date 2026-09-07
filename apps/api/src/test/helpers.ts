@@ -8,6 +8,7 @@ import { prisma } from '../db/prisma.js';
  * arrive in later steps.
  */
 export async function resetDatabase() {
+  await prisma.goal.deleteMany();
   await prisma.otpToken.deleteMany();
   await prisma.user.deleteMany();
 }

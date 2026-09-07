@@ -135,7 +135,7 @@ UI → test) and is left runnable and demoable.
 - [x] **Step 0** — Scaffold, tooling, health check, CI
 - [x] **Step 1** — Auth: college-email signup, OTP verification, login, JWT
 - [x] **Step 2** — Profiles: branch, year, gender, interests, completeness score
-- [ ] **Step 3** — Post a goal + public feed (with the anonymity serializer)
+- [x] **Step 3** — Post a goal + public feed (with the anonymity serializer)
 - [ ] **Step 4** — Request to join + poster approval (the core state machine)
 
 Steps 5–12 (lobbies, real-time chat, notes sharing, trust & safety, ratings, matching,
