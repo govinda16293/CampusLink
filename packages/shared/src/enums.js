@@ -132,8 +132,8 @@ export const BRANCH_LABEL = {
   OTHER: 'Other programme',
 };
 
-/** Years of study offered. */
-export const STUDY_YEARS = [1, 2, 3, 4, 5];
+/** Years of study. Thapar's BE programmes run four years. */
+export const STUDY_YEARS = [1, 2, 3, 4];
 
 export const USER_ROLE = {
   STUDENT: 'STUDENT',

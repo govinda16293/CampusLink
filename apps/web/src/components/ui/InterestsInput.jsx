@@ -130,7 +130,7 @@ export function InterestsInput({ label, value = [], onChange, error, hint, varia
       {message ? (
         <p className={`mt-1.5 text-sm ${dark ? 'text-red-300' : 'text-red-600'}`}>{message}</p>
       ) : hint ? (
-        <p className={`mt-1.5 text-sm ${dark ? 'text-white/50' : 'text-slate-500'}`}>{hint}</p>
+        <p className={`mt-2 text-sm ${dark ? 'text-white/35' : 'text-slate-500'}`}>{hint}</p>
       ) : null}
     </div>
   );

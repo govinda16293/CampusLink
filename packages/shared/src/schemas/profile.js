@@ -66,3 +66,29 @@ export const updateProfileSchema = z
     interests: interestsSchema.optional(),
   })
   .strict();
+
+/** Avatar upload limits. The client resizes before sending, so these are a backstop. */
+export const AVATAR_PIXELS = 320;
+export const AVATAR_MAX_BYTES = 250 * 1024;
+export const AVATAR_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+/**
+ * The avatar upload payload: a data URL produced by the client after resizing and cropping.
+ *
+ * Sending a data URL as JSON rather than multipart keeps the endpoint ordinary — no upload
+ * middleware, no temporary files — which is reasonable precisely because the client has already
+ * capped the size. The regex pins the accepted media types so an arbitrary blob cannot be stored
+ * and later served back with a type the browser might execute.
+ */
+export const avatarUploadSchema = z.object({
+  dataUrl: z
+    .string()
+    .regex(
+      /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/,
+      'Upload a JPEG, PNG or WebP image',
+    )
+    .refine(
+      (value) => value.length <= AVATAR_MAX_BYTES * 1.4,
+      'That image is too large — try a smaller one',
+    ),
+});
