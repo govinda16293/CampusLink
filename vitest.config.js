@@ -5,9 +5,15 @@ export default defineConfig({
     environment: 'node',
     include: ['apps/**/*.{test,spec}.{js,ts}', 'packages/**/*.{test,spec}.{js,ts}'],
     exclude: ['**/node_modules/**', '**/dist/**'],
+    globalSetup: ['./apps/api/src/test/globalSetup.ts'],
+    // Integration tests share one SQLite file, so they must not run concurrently — a parallel
+    // pool would have two files truncating each other's rows mid-test.
+    fileParallelism: false,
     env: {
       NODE_ENV: 'test',
       DATABASE_URL: 'file:./test.db',
+      JWT_SECRET: 'test-secret-value-not-used-in-production',
+      MAIL_TRANSPORT: 'console',
     },
   },
 });

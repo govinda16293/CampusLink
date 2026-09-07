@@ -38,11 +38,14 @@ campuslink/
 │   │   └── src/
 │   │       ├── config/       validated environment
 │   │       ├── db/           Prisma client singleton
-│   │       ├── lib/          AppError
-│   │       ├── middleware/   error handling (auth, roles to come)
+│   │       ├── lib/          AppError, password (scrypt), otp, jwt
+│   │       ├── middleware/   error handling, requireAuth
+│   │       ├── serializers/  DTO layer — nothing else may return a User
+│   │       ├── services/     mail (console transport, pluggable)
 │   │       └── modules/      one folder per feature: route · controller · service · schema
 │   └── web/          React client (plain JavaScript)
 │       └── src/{api,components,pages,store,hooks}
+│                  components/ui holds all presentation, pages hold only logic
 └── packages/
     └── shared/       enums, constants and validation schemas used by both sides
 ```
@@ -65,10 +68,27 @@ npm run db:push -w @campuslink/api
 npm run dev
 ```
 
-Open http://localhost:5173 — the page should show a green **API connected** banner.
+Open http://localhost:5173 — you should land on the sign-in screen.
 
 Vite proxies `/api` to the Express server in development, so the browser only ever talks to one
 origin and CORS never gets in the way locally.
+
+### Signing up locally
+
+No mail provider is needed. `MAIL_TRANSPORT=console` prints the passcode into the terminal
+running `npm run dev`, in a boxed block that is easy to spot among the request logs:
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ EMAIL (console transport — not actually sent)
+│ To:      yourname@thapar.edu
+│ Subject: Your CampusLink verification code: 930548
+└────────────────────────────────────────────────────────────────┘
+```
+
+Signup only accepts `@thapar.edu` addresses, but any local-part works — `test1@thapar.edu` is
+fine. Swapping in a real provider for the demo means adding one class next to
+`ConsoleMailSender` and one value to `MAIL_TRANSPORT`; nothing in the auth service changes.
 
 ## Scripts
 
@@ -89,7 +109,7 @@ The project is built in vertical slices — each step is one feature end-to-end 
 UI → test) and is left runnable and demoable.
 
 - [x] **Step 0** — Scaffold, tooling, health check, CI
-- [ ] **Step 1** — Auth: college-email signup, OTP verification, login, JWT
+- [x] **Step 1** — Auth: college-email signup, OTP verification, login, JWT
 - [ ] **Step 2** — Profiles
 - [ ] **Step 3** — Post a goal + public feed (with the anonymity serializer)
 - [ ] **Step 4** — Request to join + poster approval (the core state machine)
@@ -107,6 +127,15 @@ unit-tested exhaustively against illegal transitions, not just the happy path.
 poster's identity is included in a response, based on whether the viewer has an accepted request
 on that goal. Identity is stripped before it leaves the server — the UI is never trusted to hide
 it. Reliability score stays visible even while anonymous.
+
+**Passwords use Node's built-in scrypt.** argon2 and bcrypt both need a native build step, and
+npm now blocks install scripts by default — a dependency the team cannot install on a fresh clone
+is worse than a slightly older KDF. The cost parameters are stored inside each hash, so they can
+be raised later without locking anyone out.
+
+**Auth endpoints do not leak who has an account.** A wrong password and an unknown email return
+the identical 401; resending a passcode returns the same message whether or not the address
+exists. Otherwise either endpoint becomes a way to test which students have signed up.
 
 **Enum columns are strings.** Prisma does not support native enums on SQLite, so enumerated
 columns are `String` and their allowed values live in `packages/shared/src/enums.js`, enforced by

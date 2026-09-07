@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { corsOrigins, isTest } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { authRouter } from './modules/auth/auth.route.js';
 import { healthRouter } from './modules/health/health.route.js';
 
 /**
@@ -31,6 +32,7 @@ export function createApp() {
 
   // Feature routers are mounted under /api as they are built.
   app.use('/api', healthRouter);
+  app.use('/api', authRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

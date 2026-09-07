@@ -2,12 +2,25 @@
  * The single HTTP entry point for the web client.
  *
  * Every call to the API goes through `apiRequest`, which gives us one place to attach the auth
- * token (Step 1), and one place that understands the API's uniform error envelope
+ * token, and one place that understands the API's uniform error envelope
  * `{ error: { code, message, details } }`. Components therefore only ever have to catch
  * `ApiError` — they never deal with raw fetch responses or status codes.
  */
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
+
+/**
+ * The current session token.
+ *
+ * Held in a module variable rather than read from the store, because importing the store here
+ * would create a cycle: the store imports this module to make its requests. The auth store is
+ * the only thing that calls `setAuthToken`, and it does so on login, logout and rehydration.
+ */
+let authToken = null;
+
+export function setAuthToken(token) {
+  authToken = token ?? null;
+}
 
 export class ApiError extends Error {
   constructor(status, code, message, details) {
@@ -28,6 +41,7 @@ export async function apiRequest(path, { method = 'GET', body, headers = {}, sig
       method,
       headers: {
         ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         ...headers,
       },
       body: body ? JSON.stringify(body) : undefined,

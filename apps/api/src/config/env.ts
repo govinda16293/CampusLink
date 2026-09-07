@@ -16,6 +16,16 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required (see apps/api/.env.example)'),
+
+  // --- Auth ---
+  JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
+  JWT_EXPIRES_IN: z.string().default('7d'),
+
+  // --- Email / OTP ---
+  // `console` prints the passcode to the terminal instead of sending mail, so signup works in
+  // development without any mail provider credentials.
+  MAIL_TRANSPORT: z.enum(['console']).default('console'),
+  MAIL_FROM: z.string().default('CampusLink <no-reply@campuslink.local>'),
 });
 
 const parsed = envSchema.safeParse(process.env);
