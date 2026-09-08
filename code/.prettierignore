@@ -3,4 +3,4 @@ dist/
 build/
 coverage/
 package-lock.json
-apps/api/prisma/migrations/
+backend/prisma/migrations/

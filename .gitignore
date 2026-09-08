@@ -13,10 +13,10 @@ coverage/
 *.db
 *.db-journal
 *.sqlite
-apps/api/prisma/*.db*
+code/backend/prisma/*.db*
 
 # uploads (local file-storage adapter)
-apps/api/uploads/
+code/backend/uploads/
 
 # logs
 *.log
@@ -31,5 +31,5 @@ npm-debug.log*
 *.swp
 
 # Scratch folder for design uploads. Anything the app actually uses is copied into
-# apps/web/src/assets/ and committed from there, so the original drop stays local.
+# code/frontend/src/assets/ and committed from there, so the original drop stays local.
 input/
