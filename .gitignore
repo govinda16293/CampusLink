@@ -29,3 +29,7 @@ npm-debug.log*
 .DS_Store
 .idea/
 *.swp
+
+# Scratch folder for design uploads. Anything the app actually uses is copied into
+# apps/web/src/assets/ and committed from there, so the original drop stays local.
+input/

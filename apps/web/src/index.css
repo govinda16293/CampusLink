@@ -118,24 +118,53 @@ body {
  * photograph above — they are the front door, and a real Thapar photo says who this is for far
  * better than an abstract glow. Everything behind the login uses the palette below.
  *
- * The backdrop is a gradient rather than an image: the reference supplied was a photograph of a
- * monitor, complete with bezel and colour banding, which would have looked soft stretched across
- * a desktop. Built in CSS it is pin-sharp at any size, reflows on a phone, and costs no bytes.
+ * The backdrop is the supplied artwork over a CSS gradient in the same palette. Three layers,
+ * painted top to bottom:
+ *
+ *   1. A scrim. The artwork is brightest along its top edge, which is exactly where the header
+ *      sits, and the whole app renders white text. Without this the CAMPUSLINK wordmark and the
+ *      sign-out button land on cream and drop below a readable contrast ratio.
+ *   2. The artwork itself, anchored to the bottom so the black foot of the image holds the lower
+ *      half of the screen where the frosted panels and the nav pill sit.
+ *   3. The gradient that used to be the whole backdrop. It is not dead code: it paints instantly
+ *      and covers the moment before the JPEG decodes, so the first frame is never a bare black
+ *      rectangle, and it is what shows if the image ever fails to load.
+ *
+ * Swapping the artwork means replacing `assets/app-backdrop.jpg` — nothing else changes.
+ *
+ * `background-attachment: fixed` is deliberately not used. iOS Safari mis-scales a fixed cover
+ * image against the viewport and jumps it as the address bar collapses; letting it scroll with
+ * the page is the less distracting of the two behaviours on the phones this is built for.
  */
 .app-backdrop {
   background-color: #0a0a0d;
   background-image:
-    /* The warm core, sitting behind the avatar on the right. */
-    radial-gradient(
-      42% 40% at 76% 36%,
-      rgba(255, 146, 58, 0.62) 0%,
-      rgba(206, 74, 22, 0.34) 42%,
-      rgba(140, 48, 14, 0.12) 62%,
-      transparent 78%
+    /* 1. Readability scrim: strongest at the top, easing off through the middle. */
+    linear-gradient(
+      to bottom,
+      rgb(6 6 8 / 0.82) 0%,
+      rgb(6 6 8 / 0.55) 14%,
+      rgb(6 6 8 / 0.34) 30%,
+      rgb(6 6 8 / 0.28) 55%,
+      rgb(6 6 8 / 0.45) 100%
     ),
-    /* A cool lift in the top-left so the dark side is not a flat black. */
+    /* 2. The artwork. */ url('./assets/app-backdrop.jpg'),
+    /* 3. Instant-paint fallback, in the same palette. */
+    radial-gradient(
+        42% 40% at 76% 36%,
+        rgba(255, 146, 58, 0.62) 0%,
+        rgba(206, 74, 22, 0.34) 42%,
+        rgba(140, 48, 14, 0.12) 62%,
+        transparent 78%
+      ),
     radial-gradient(90% 75% at 22% 12%, #1d1d24 0%, #101014 45%, #0a0a0d 100%);
-  background-attachment: fixed;
+  background-size: cover, cover, cover, cover;
+  background-position:
+    center,
+    center bottom,
+    center,
+    center;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
 }
 
 /*
