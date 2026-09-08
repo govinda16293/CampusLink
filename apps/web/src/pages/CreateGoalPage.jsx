@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   GENDER_PREFERENCES,
@@ -6,6 +7,8 @@ import {
   createGoalSchema,
 } from '@campuslink/shared';
 import { goalsApi } from '../api/goals';
+import { localInputToIso } from '../lib/datetime';
+import { formatGoalWhen } from '../lib/formatGoal';
 import { useForm } from '../hooks/useForm';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
@@ -21,6 +24,11 @@ const GENDER_PREFERENCE_LABEL = {
 
 export function CreateGoalPage() {
   const navigate = useNavigate();
+
+  // The raw `YYYY-MM-DDTHH:mm` string stays here rather than being derived back out of the ISO
+  // value on every render. Round-tripping meant a value the parser could not read vanished from
+  // the input as you typed it, which is precisely how the missing-time bug hid itself.
+  const [whenInput, setWhenInput] = useState('');
 
   const form = useForm({
     schema: createGoalSchema,
@@ -40,6 +48,21 @@ export function CreateGoalPage() {
     },
   });
 
+  // A half-filled or unparseable date must never post as a "whenever" goal by accident: the
+  // student meant to set a time, and the feed would show "Anytime" with no hint anything failed.
+  const whenError =
+    whenInput !== '' && form.values.dateTime === null
+      ? 'That date and time did not come through — please pick it again.'
+      : undefined;
+
+  const handleSubmit = (event) => {
+    if (whenError) {
+      event.preventDefault();
+      return;
+    }
+    form.handleSubmit(event);
+  };
+
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-3xl font-bold tracking-tight text-white">Post a goal</h1>
@@ -49,7 +72,7 @@ export function CreateGoalPage() {
       </p>
 
       <form
-        onSubmit={form.handleSubmit}
+        onSubmit={handleSubmit}
         className="frost-panel mt-8 space-y-6 rounded-3xl p-7 sm:p-8"
         noValidate
       >
@@ -108,16 +131,20 @@ export function CreateGoalPage() {
           label="When"
           name="dateTime"
           type="datetime-local"
-          hint="Leave empty for a whenever goal — it stays on the feed for 48 hours."
-          // datetime-local gives a local wall-clock string; the API wants an ISO instant.
-          value={form.values.dateTime ? toLocalInputValue(form.values.dateTime) : ''}
-          onChange={(event) =>
-            form.setValue(
-              'dateTime',
-              event.target.value ? new Date(event.target.value).toISOString() : null,
-            )
+          value={whenInput}
+          onChange={(event) => {
+            const raw = event.target.value;
+            setWhenInput(raw);
+            // localInputToIso returns null instead of throwing, so an unreadable value becomes a
+            // visible error below rather than a silently timeless goal.
+            form.setValue('dateTime', localInputToIso(raw));
+          }}
+          hint={
+            form.values.dateTime
+              ? `Posting for ${formatGoalWhen(form.values.dateTime)}.`
+              : 'Leave empty for a whenever goal — it stays on the feed for 48 hours.'
           }
-          error={form.fieldErrors.dateTime}
+          error={form.fieldErrors.dateTime ?? whenError}
         />
 
         <Field
@@ -171,9 +198,3 @@ export function CreateGoalPage() {
   );
 }
 
-/** ISO instant -> the `YYYY-MM-DDTHH:mm` local string a datetime-local input expects. */
-function toLocalInputValue(iso) {
-  const date = new Date(iso);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
