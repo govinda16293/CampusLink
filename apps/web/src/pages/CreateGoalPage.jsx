@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   GENDER_PREFERENCES,
@@ -7,7 +7,7 @@ import {
   createGoalSchema,
 } from '@campuslink/shared';
 import { goalsApi } from '../api/goals';
-import { dateAndTimeToIso } from '../lib/datetime';
+import { dateAndTimeToIso, isoToDateAndTime } from '../lib/datetime';
 import { formatGoalWhen } from '../lib/formatGoal';
 import { useForm } from '../hooks/useForm';
 import { Alert } from '../components/ui/Alert';
@@ -25,11 +25,20 @@ const GENDER_PREFERENCE_LABEL = {
 export function CreateGoalPage() {
   const navigate = useNavigate();
 
-  // Date and time are held as their own plain strings and combined only when both are present.
-  // They are deliberately not derived back out of the ISO value on each render: that round-trip
-  // meant a value the parser could not read vanished from the field as it was being typed, which
-  // is a large part of why the missing-time bug was invisible. See lib/datetime.js.
-  const [whenDate, setWhenDate] = useState('');
+  // The date defaults to today and the TIME is what decides whether a goal is scheduled at all.
+  //
+  // That split is deliberate. With the date starting empty, a same-day goal was silently losing
+  // its time: on iOS the native date picker opens with today already highlighted, so confirming
+  // it fires no change event — nothing changed as far as the browser is concerned — and the field
+  // stayed empty. Picking tomorrow means scrolling the wheel, which does fire, which is why
+  // same-day goals broke and later ones did not. Pre-filling today makes that path unreachable,
+  // and it matches how these goals are actually written: "gym at 6" almost always means today.
+  //
+  // The values are held as plain strings and never derived back out of the ISO value on each
+  // render — that round-trip previously made a value the parser could not read vanish from the
+  // field as it was typed. See lib/datetime.js for the rest of that history.
+  const today = useMemo(() => isoToDateAndTime(new Date().toISOString()).date, []);
+  const [whenDate, setWhenDate] = useState(today);
   const [whenTime, setWhenTime] = useState('');
 
   const form = useForm({
@@ -53,23 +62,31 @@ export function CreateGoalPage() {
   const setWhen = (date, time) => {
     setWhenDate(date);
     setWhenTime(time);
-    // Returns null rather than throwing, so an incomplete pair becomes a visible message below
-    // instead of a goal that silently loses its time.
-    form.setValue('dateTime', dateAndTimeToIso(date, time));
+    // No time means a whenever goal, whatever the date box happens to say. dateAndTimeToIso
+    // returns null rather than throwing, so a value it cannot read becomes a visible message
+    // below instead of a goal that silently loses its time.
+    form.setValue('dateTime', time ? dateAndTimeToIso(date, time) : null);
   };
 
-  // Half-filled must never post as a "whenever" goal by accident. The student meant to set a
-  // time, and the feed would show "Anytime" with nothing anywhere saying the time was dropped.
-  const whenError =
-    form.values.dateTime !== null
-      ? undefined
-      : whenDate && !whenTime
-        ? 'Pick a time as well, or clear the date for a whenever goal.'
-        : whenTime && !whenDate
-          ? 'Pick a date as well, or clear the time for a whenever goal.'
-          : whenDate && whenTime
-            ? 'That date and time did not come through — please pick them again.'
-            : undefined;
+  // A time the student set must never turn into a "whenever" goal by accident — the feed would
+  // show "Anytime" with nothing anywhere saying the time had been dropped. Anything that would
+  // do that is caught here and blocks the post instead.
+  //
+  // The past-time rule is checked against the shared schema rather than re-implemented, so the
+  // message shown while typing cannot drift from the one the API would return on submit.
+  const whenInPast =
+    form.values.dateTime !== null &&
+    !createGoalSchema.shape.dateTime.safeParse(form.values.dateTime).success;
+
+  const whenError = !whenTime
+    ? undefined
+    : !whenDate
+      ? 'Pick a date as well, or clear the time for a whenever goal.'
+      : form.values.dateTime === null
+        ? 'That date and time did not come through — please pick them again.'
+        : whenInPast
+          ? 'That time has already passed. Pick a later time, or a different date.'
+          : undefined;
 
   const handleSubmit = (event) => {
     if (whenError) {
@@ -149,6 +166,7 @@ export function CreateGoalPage() {
               label="Date"
               name="whenDate"
               type="date"
+              min={today}
               value={whenDate}
               onChange={(event) => setWhen(event.target.value, whenTime)}
             />
@@ -172,7 +190,7 @@ export function CreateGoalPage() {
             </p>
           ) : (
             <p className="mt-2 text-sm text-white/35">
-              Leave both empty for a whenever goal — it stays on the feed for 48 hours.
+              Leave the time empty for a whenever goal — it stays on the feed for 48 hours.
             </p>
           )}
         </div>
