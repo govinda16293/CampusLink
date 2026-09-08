@@ -1,0 +1,47 @@
+{
+  "name": "campuslink",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CampusLink \u2014 a goal-matching and resource-sharing platform for college campuses (UCS503)",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w @campuslink/api\" \"npm run dev -w @campuslink/web\"",
+    "build": "npm run build -w @campuslink/api && npm run build -w @campuslink/web",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck -w @campuslink/api",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "npm run db:generate -w @campuslink/api",
+    "db:migrate": "npm run db:migrate -w @campuslink/api",
+    "db:studio": "npm run db:studio -w @campuslink/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "concurrently": "^9.1.0",
+    "eslint": "^9.15.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "globals": "^15.12.0",
+    "prettier": "^3.4.1",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.16.0",
+    "vitest": "^3.2.4"
+  },
+  "allowScripts": {
+    "@prisma/client": true,
+    "@prisma/engines": true,
+    "esbuild": true,
+    "prisma": true
+  }
+}
