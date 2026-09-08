@@ -28,26 +28,30 @@
  * The auth backdrop.
  *
  * The campus photograph, with a gradient in the same palette behind it. The gradient is not
- * dead code: it paints instantly and covers the moment before a 240 KB image decodes, so the
- * white headline never lands on a blank white page. Swapping the photo means replacing
+ * dead code: it paints instantly and covers the moment before the image decodes, so the white
+ * headline never lands on a blank white page. Swapping the photo means replacing
  * `assets/campus.jpg` — nothing else changes.
  *
- * The source image is portrait (946×1183) while the layout is landscape, so `cover` crops it to
+ * The source image is portrait (1122×1402) while the layout is landscape, so `cover` crops it to
  * a horizontal band. `center` keeps the buildings and the treeline in that band, matching the
  * composition in the design.
+ *
+ * It ships as JPEG rather than the PNG it was supplied as: the same picture is 2.2 MB as a PNG
+ * and 388 KB at quality 72, and this is a photograph sitting behind a scrim and a blurred glass
+ * panel, so nothing survives to the eye that the extra 1.8 MB would have paid for.
  */
 .auth-backdrop {
   --auth-bg-gradient: linear-gradient(
     to bottom,
-    #6fa9d2 0%,
-    #93c1e0 22%,
-    #bfdaea 40%,
+    #6ab7ea 0%,
+    #8fcaee 22%,
+    #bcdcef 40%,
     #d2c0b0 52%,
     #c07a5f 66%,
     #ad5238 82%,
     #93412c 100%
   );
-  background-color: #93c1e0;
+  background-color: #8fcaee;
   background-image: var(--auth-bg-image, url('./assets/campus.jpg')), var(--auth-bg-gradient);
   background-size: cover, cover;
   background-position: center, center;
@@ -58,17 +62,26 @@
  * Readability scrim.
  *
  * All the text on this screen is white, and a photograph has bright regions a gradient does not.
- * Two passes: darkening from the left for the headline, and from the foot for the value strip,
- * which otherwise sits on sunlit treetops and drops well below a readable contrast ratio.
+ * Three passes, each earning its place against a specific piece of text:
+ *
+ *   - from the foot, for the value strip, which lands on sunlit treetops and on the white lane
+ *     markings of the running track — the brightest pixels in the whole photograph;
+ *   - from the top, for the wordmark and the POST / DISCOVER / CONNECT links;
+ *   - from the left, for the headline and the line under it, which sits over a flowering tree
+ *     lit from behind and drops well below a readable ratio without it.
+ *
+ * The values were raised when the photograph was replaced: the newer one is a brighter, sunnier
+ * shot with far more foliage on the left, and the previous scrim left the sub-headline barely
+ * legible over it.
  */
 .auth-backdrop::before {
   content: '';
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(to top, rgb(0 0 0 / 0.62) 0%, rgb(0 0 0 / 0.12) 22%, rgb(0 0 0 / 0) 38%),
-    linear-gradient(to bottom, rgb(0 0 0 / 0.3) 0%, rgb(0 0 0 / 0) 18%),
-    linear-gradient(to right, rgb(0 0 0 / 0.5) 0%, rgb(0 0 0 / 0.28) 45%, rgb(0 0 0 / 0.12) 100%);
+    linear-gradient(to top, rgb(0 0 0 / 0.74) 0%, rgb(0 0 0 / 0.3) 18%, rgb(0 0 0 / 0) 40%),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.38) 0%, rgb(0 0 0 / 0) 20%),
+    linear-gradient(to right, rgb(0 0 0 / 0.66) 0%, rgb(0 0 0 / 0.34) 42%, rgb(0 0 0 / 0.1) 100%);
   pointer-events: none;
 }
 
@@ -80,9 +93,11 @@
  * anyone who has asked for reduced transparency.
  */
 .glass-panel {
-  /* Enough white to even out whatever is behind it. The card lands over the terracotta building,
-     and at lower opacity the blur pulls that red through as a blotch rather than a frost. */
-  background: linear-gradient(to bottom, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.13));
+  /* Enough white to even out whatever is behind it. The card lands half on open sky and half on
+     the terracotta building, and at lower opacity the blur pulls that red through the lower half
+     as a pink blotch rather than a frost — with "Forgot password?" sitting right in it. Raised
+     when the photograph was replaced, because the building sits higher in the newer one. */
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.21), rgb(255 255 255 / 0.19));
   backdrop-filter: blur(28px) saturate(115%);
   -webkit-backdrop-filter: blur(28px) saturate(115%);
   border: 1px solid rgb(255 255 255 / 0.28);
