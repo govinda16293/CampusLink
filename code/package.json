@@ -2,11 +2,12 @@
   "name": "campuslink",
   "version": "0.1.0",
   "private": true,
-  "description": "CampusLink — a goal-matching and resource-sharing platform for college campuses (UCS503)",
+  "description": "CampusLink \u2014 a goal-matching and resource-sharing platform for college campuses (UCS503)",
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "apps/*"
+    "shared",
+    "backend",
+    "frontend"
   ],
   "engines": {
     "node": ">=20"

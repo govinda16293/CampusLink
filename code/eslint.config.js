@@ -11,7 +11,7 @@ export default [
       '**/dist/**',
       '**/build/**',
       '**/coverage/**',
-      'apps/api/prisma/migrations/**',
+      'backend/prisma/migrations/**',
     ],
   },
 
@@ -20,10 +20,10 @@ export default [
   // ---- API + shared package: TypeScript-aware rules -------------------------
   ...tseslint.configs.recommended.map((config) => ({
     ...config,
-    files: ['apps/api/**/*.ts'],
+    files: ['backend/**/*.ts'],
   })),
   {
-    files: ['apps/api/**/*.ts'],
+    files: ['backend/**/*.ts'],
     languageOptions: {
       globals: { ...globals.node },
       parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
@@ -39,7 +39,7 @@ export default [
 
   // ---- Shared package: plain JS, runs in both environments ------------------
   {
-    files: ['packages/shared/**/*.js'],
+    files: ['shared/**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -49,7 +49,7 @@ export default [
 
   // ---- Web app: plain JavaScript + React -----------------------------------
   {
-    files: ['apps/web/**/*.{js,jsx}'],
+    files: ['frontend/**/*.{js,jsx}'],
     plugins: { react, 'react-hooks': reactHooks },
     languageOptions: {
       ecmaVersion: 'latest',
@@ -70,7 +70,7 @@ export default [
 
   // ---- Config files at the repo root ---------------------------------------
   {
-    files: ['*.js', '*.config.js', 'apps/*/*.config.js'],
+    files: ['*.js', '*.config.js', '*/*.config.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

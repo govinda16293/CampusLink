@@ -25,30 +25,37 @@ it feels safe to do with someone you don't know.
 | CI        | GitHub Actions — format, lint, typecheck, test, build           |
 
 The repository is deliberately mixed-language: a TypeScript API and a JavaScript client. Code
-shared between the two lives in `packages/shared` and is authored in plain JavaScript so the
+shared between the two lives in `shared/` and is authored in plain JavaScript so the
 client can import it directly; the API consumes the same files via `allowJs`.
 
 ## Layout
 
+This folder is the npm workspace root. The repository around it holds the proposal, the docs
+site and the team journals; everything executable lives here.
+
 ```
-campuslink/
-├── apps/
-│   ├── api/          Express + Prisma REST API (TypeScript)
-│   │   ├── prisma/   schema.prisma — the executable class diagram
-│   │   └── src/
-│   │       ├── config/       validated environment
-│   │       ├── db/           Prisma client singleton
-│   │       ├── lib/          AppError, password (scrypt), otp, jwt
-│   │       ├── middleware/   error handling, requireAuth
-│   │       ├── serializers/  DTO layer — nothing else may return a User
-│   │       ├── services/     mail (console transport, pluggable)
-│   │       └── modules/      one folder per feature: route · controller · service · schema
-│   └── web/          React client (plain JavaScript)
-│       └── src/{api,components,pages,store,hooks}
-│                  components/ui holds all presentation, pages hold only logic
-└── packages/
-    └── shared/       enums, constants and validation schemas used by both sides
+code/
+├── frontend/     React client (plain JavaScript)
+│   └── src/{api,components,pages,store,hooks,lib}
+│              components/ui holds all presentation, pages hold only logic
+├── backend/      Express + Prisma REST API (TypeScript)
+│   ├── prisma/   schema.prisma — the executable class diagram
+│   └── src/
+│       ├── config/       validated environment
+│       ├── db/           Prisma client singleton
+│       ├── lib/          AppError, password (scrypt), otp, jwt
+│       ├── middleware/   error handling, requireAuth
+│       ├── serializers/  DTO layer — nothing else may return a User
+│       ├── services/     mail (console and SMTP transports)
+│       └── modules/      one folder per feature: route · controller · service
+└── shared/       enums, constants and validation schemas used by both sides
 ```
+
+`shared/` is a third workspace beside the two the course structure names, and it is not
+optional: the Zod schemas that validate a signup or a new goal are imported by the React forms
+_and_ by the Express handlers, so the inline error a student sees is produced by the very rule
+the server will enforce. Copying those schemas into both sides instead would guarantee the two
+drift apart, and the day they do, the client will accept something the API rejects.
 
 ## Getting started
 
@@ -56,10 +63,11 @@ Requires Node 20+ (developed on Node 24). No database installation needed — de
 a local SQLite file.
 
 ```bash
+cd code
 npm install
 
 # API configuration
-cp apps/api/.env.example apps/api/.env
+cp backend/.env.example backend/.env
 
 # create the local database and generate the Prisma client
 npm run db:push -w @campuslink/api
@@ -91,7 +99,7 @@ fine.
 
 ### Sending real email
 
-Set `MAIL_TRANSPORT=smtp` and fill in the `SMTP_*` variables in `apps/api/.env`. Any SMTP server
+Set `MAIL_TRANSPORT=smtp` and fill in the `SMTP_*` variables in `code/backend/.env`. Any SMTP server
 works — Gmail, Outlook, Brevo, SendGrid, Mailtrap — only the values differ.
 
 For Gmail (including a `thapar.edu` Google account):
@@ -144,7 +152,7 @@ metrics, deployment) are planned but not yet in scope.
 ## Design notes worth knowing
 
 **The state machine is pure.** Goal, request and lobby transitions live in
-`apps/api/src/domain/` as functions with no database or HTTP dependency, so they can be
+`code/backend/src/domain/` as functions with no database or HTTP dependency, so they can be
 unit-tested exhaustively against illegal transitions, not just the happy path.
 
 **Anonymity is enforced server-side, in one place.** The serializer layer decides whether a
@@ -180,5 +188,5 @@ proximity had almost nothing to discriminate on. Step 10 keeps interest, branch 
 scoring.
 
 **Enum columns are strings.** Prisma does not support native enums on SQLite, so enumerated
-columns are `String` and their allowed values live in `packages/shared/src/enums.js`, enforced by
+columns are `String` and their allowed values live in `code/shared/src/enums.js`, enforced by
 Zod at the API boundary. This keeps one schema working on both SQLite and PostgreSQL.

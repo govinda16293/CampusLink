@@ -3,9 +3,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['apps/**/*.{test,spec}.{js,ts}', 'packages/**/*.{test,spec}.{js,ts}'],
+    include: ['{backend,frontend,shared}/**/*.{test,spec}.{js,ts}'],
     exclude: ['**/node_modules/**', '**/dist/**'],
-    globalSetup: ['./apps/api/src/test/globalSetup.ts'],
+    globalSetup: ['./backend/src/test/globalSetup.ts'],
     // Integration tests share one SQLite file, so they must not run concurrently — a parallel
     // pool would have two files truncating each other's rows mid-test.
     fileParallelism: false,
