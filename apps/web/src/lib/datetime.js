@@ -1,41 +1,64 @@
 /**
- * Conversions between a `datetime-local` input value and an ISO instant.
+ * Conversion between the goal form's date/time inputs and the ISO instant the API stores.
  *
- * These exist because `new Date(string)` cannot be trusted for this job. A `datetime-local` input
- * yields `YYYY-MM-DDTHH:mm` — no seconds, no timezone — and Safari's Date parser has historically
- * rejected that exact shape and returned `Invalid Date`. `.toISOString()` on it then throws inside
- * the change handler; React does not catch errors thrown in event handlers, so the failure is
- * completely silent and the goal quietly posts with no time on it. That was a real bug: goals
- * posted from Safari showed "Anytime" while the same form on Chrome worked.
+ * WHY THIS IS NOT ONE `datetime-local` INPUT
  *
- * Parsing the parts by hand and handing numbers to the Date constructor behaves identically in
- * every browser, and returning null (rather than throwing) lets the form show a message.
+ * It used to be, and goals posted with a time were reaching the database with no time at all —
+ * the feed showed "Anytime" — for one team member and not the other. Two things were wrong with
+ * that input, and either alone is enough to lose the value silently:
+ *
+ *   1. A `datetime-local` input yields `YYYY-MM-DDTHH:mm` — no seconds, no timezone. Safari's
+ *      Date parser rejects that shape and returns Invalid Date, so `new Date(v).toISOString()`
+ *      threw inside a React change handler, where nothing catches it.
+ *   2. As a *controlled* React input it is unreliable on iOS: the component re-renders between
+ *      the segments of a picker, so a partly-entered value gets reset before it is complete and
+ *      the field is left empty with no error anywhere.
+ *
+ * `type="date"` and `type="time"` have neither problem. They are supported everywhere, each holds
+ * one simple string, and on a phone each opens its own native picker. Parsing the parts by hand
+ * and handing numbers to the Date constructor behaves identically in every browser, and returning
+ * null rather than throwing lets the form say something instead of quietly dropping the time.
  */
 
-/** `YYYY-MM-DDTHH:mm` in the viewer's own timezone -> ISO instant, or null if unusable. */
-export function localInputToIso(value) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(value ?? '').trim());
-  if (!match) return null;
+/**
+ * `YYYY-MM-DD` + `HH:mm`, both in the viewer's own timezone, to an ISO instant.
+ * Returns null if either part is missing or unusable — the caller decides what that means.
+ */
+export function dateAndTimeToIso(dateValue, timeValue) {
+  const date = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateValue ?? '').trim());
+  // Some browsers append seconds to a time input's value; anything after the minutes is ignored.
+  const time = /^(\d{1,2}):(\d{2})/.exec(String(timeValue ?? '').trim());
+  if (!date || !time) return null;
 
-  const [year, month, day, hour, minute] = match.slice(1).map(Number);
-  // Numeric arguments are interpreted as local wall-clock time, which is what the input means.
-  const date = new Date(year, month - 1, day, hour, minute, 0, 0);
-  if (Number.isNaN(date.getTime())) return null;
+  const [year, month, day] = date.slice(1).map(Number);
+  const [hour, minute] = time.slice(1).map(Number);
+  if (hour > 23 || minute > 59) return null;
 
-  // Rejects impossible dates that the constructor silently rolls over, e.g. 31 February.
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+  // Numeric arguments are read as local wall-clock time, which is what the student picked.
+  const result = new Date(year, month - 1, day, hour, minute, 0, 0);
+  if (Number.isNaN(result.getTime())) return null;
+
+  // Rejects impossible dates the constructor silently rolls over, e.g. 31 February -> 3 March.
+  if (
+    result.getFullYear() !== year ||
+    result.getMonth() !== month - 1 ||
+    result.getDate() !== day
+  ) {
     return null;
   }
 
-  return date.toISOString();
+  return result.toISOString();
 }
 
-/** ISO instant -> the `YYYY-MM-DDTHH:mm` local string a `datetime-local` input expects. */
-export function isoToLocalInput(iso) {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
+/** The inverse: an ISO instant back to the two input values, in the viewer's timezone. */
+export function isoToDateAndTime(iso) {
+  if (!iso) return { date: '', time: '' };
+  const value = new Date(iso);
+  if (Number.isNaN(value.getTime())) return { date: '', time: '' };
 
   const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return {
+    date: `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`,
+    time: `${pad(value.getHours())}:${pad(value.getMinutes())}`,
+  };
 }

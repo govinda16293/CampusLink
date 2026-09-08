@@ -7,7 +7,7 @@ import {
   createGoalSchema,
 } from '@campuslink/shared';
 import { goalsApi } from '../api/goals';
-import { localInputToIso } from '../lib/datetime';
+import { dateAndTimeToIso } from '../lib/datetime';
 import { formatGoalWhen } from '../lib/formatGoal';
 import { useForm } from '../hooks/useForm';
 import { Alert } from '../components/ui/Alert';
@@ -25,10 +25,12 @@ const GENDER_PREFERENCE_LABEL = {
 export function CreateGoalPage() {
   const navigate = useNavigate();
 
-  // The raw `YYYY-MM-DDTHH:mm` string stays here rather than being derived back out of the ISO
-  // value on every render. Round-tripping meant a value the parser could not read vanished from
-  // the input as you typed it, which is precisely how the missing-time bug hid itself.
-  const [whenInput, setWhenInput] = useState('');
+  // Date and time are held as their own plain strings and combined only when both are present.
+  // They are deliberately not derived back out of the ISO value on each render: that round-trip
+  // meant a value the parser could not read vanished from the field as it was being typed, which
+  // is a large part of why the missing-time bug was invisible. See lib/datetime.js.
+  const [whenDate, setWhenDate] = useState('');
+  const [whenTime, setWhenTime] = useState('');
 
   const form = useForm({
     schema: createGoalSchema,
@@ -48,12 +50,26 @@ export function CreateGoalPage() {
     },
   });
 
-  // A half-filled or unparseable date must never post as a "whenever" goal by accident: the
-  // student meant to set a time, and the feed would show "Anytime" with no hint anything failed.
+  const setWhen = (date, time) => {
+    setWhenDate(date);
+    setWhenTime(time);
+    // Returns null rather than throwing, so an incomplete pair becomes a visible message below
+    // instead of a goal that silently loses its time.
+    form.setValue('dateTime', dateAndTimeToIso(date, time));
+  };
+
+  // Half-filled must never post as a "whenever" goal by accident. The student meant to set a
+  // time, and the feed would show "Anytime" with nothing anywhere saying the time was dropped.
   const whenError =
-    whenInput !== '' && form.values.dateTime === null
-      ? 'That date and time did not come through — please pick it again.'
-      : undefined;
+    form.values.dateTime !== null
+      ? undefined
+      : whenDate && !whenTime
+        ? 'Pick a time as well, or clear the date for a whenever goal.'
+        : whenTime && !whenDate
+          ? 'Pick a date as well, or clear the time for a whenever goal.'
+          : whenDate && whenTime
+            ? 'That date and time did not come through — please pick them again.'
+            : undefined;
 
   const handleSubmit = (event) => {
     if (whenError) {
@@ -126,26 +142,40 @@ export function CreateGoalPage() {
           )}
         </div>
 
-        <Field
-          variant="dark"
-          label="When"
-          name="dateTime"
-          type="datetime-local"
-          value={whenInput}
-          onChange={(event) => {
-            const raw = event.target.value;
-            setWhenInput(raw);
-            // localInputToIso returns null instead of throwing, so an unreadable value becomes a
-            // visible error below rather than a silently timeless goal.
-            form.setValue('dateTime', localInputToIso(raw));
-          }}
-          hint={
-            form.values.dateTime
-              ? `Posting for ${formatGoalWhen(form.values.dateTime)}.`
-              : 'Leave empty for a whenever goal — it stays on the feed for 48 hours.'
-          }
-          error={form.fieldErrors.dateTime ?? whenError}
-        />
+        <div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field
+              variant="dark"
+              label="Date"
+              name="whenDate"
+              type="date"
+              value={whenDate}
+              onChange={(event) => setWhen(event.target.value, whenTime)}
+            />
+            <Field
+              variant="dark"
+              label="Time"
+              name="whenTime"
+              type="time"
+              value={whenTime}
+              onChange={(event) => setWhen(whenDate, event.target.value)}
+            />
+          </div>
+
+          {/* Echoing the parsed result back is what makes a dropped time obvious before posting
+              rather than after, which is how the original bug went unnoticed for two days. */}
+          {form.fieldErrors.dateTime || whenError ? (
+            <p className="mt-2 text-sm text-red-300">{form.fieldErrors.dateTime ?? whenError}</p>
+          ) : form.values.dateTime ? (
+            <p className="mt-2 text-sm text-amber-200/80">
+              Posting for {formatGoalWhen(form.values.dateTime)}.
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-white/35">
+              Leave both empty for a whenever goal — it stays on the feed for 48 hours.
+            </p>
+          )}
+        </div>
 
         <Field
           variant="dark"
@@ -197,4 +227,3 @@ export function CreateGoalPage() {
     </div>
   );
 }
-

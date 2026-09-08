@@ -1,62 +1,75 @@
 import { describe, expect, it } from 'vitest';
-import { isoToLocalInput, localInputToIso } from './datetime.js';
+import { dateAndTimeToIso, isoToDateAndTime } from './datetime.js';
 
 /**
- * Regression tests for the "goal posted with a time shows Anytime" bug.
+ * Regression tests for "a goal posted with a time shows Anytime on the feed".
  *
- * The original code called `new Date(input.value).toISOString()` directly. Safari rejects the
- * seconds-less, zoneless string a `datetime-local` input produces, so that threw inside a React
- * change handler — where nothing catches it — and the goal reached the API with no time on it.
- * These assertions pin the behaviour that replaced it.
+ * The form originally used one `datetime-local` input and called
+ * `new Date(input.value).toISOString()` in the change handler. Safari rejects the seconds-less,
+ * zoneless string that input produces, so the call threw inside a React event handler — where
+ * nothing catches it — and the goal reached the API with no time on it. These pin the behaviour
+ * of the two plain inputs that replaced it.
+ *
+ * Times are asserted by round-tripping rather than against fixed instants, so the results do not
+ * depend on the timezone of the machine running the tests.
  */
-describe('localInputToIso', () => {
-  it('accepts the exact shape a datetime-local input produces', () => {
-    // No seconds and no timezone: the string Safari's Date parser used to reject.
-    expect(localInputToIso('2030-09-08T18:30')).not.toBeNull();
+describe('dateAndTimeToIso', () => {
+  it('combines a date and a time into an instant', () => {
+    expect(isoToDateAndTime(dateAndTimeToIso('2030-09-08', '18:30'))).toEqual({
+      date: '2030-09-08',
+      time: '18:30',
+    });
   });
 
-  it('preserves the wall-clock time the student picked', () => {
-    // Asserted by round-tripping rather than against a fixed instant, so the test does not
-    // depend on the timezone the machine running it happens to be in.
-    expect(isoToLocalInput(localInputToIso('2030-09-08T18:30'))).toBe('2030-09-08T18:30');
+  it('ignores seconds, which some browsers append to a time input', () => {
+    expect(isoToDateAndTime(dateAndTimeToIso('2030-09-08', '18:30:00'))).toEqual({
+      date: '2030-09-08',
+      time: '18:30',
+    });
   });
 
-  it('accepts a value that carries seconds, which some browsers append', () => {
-    expect(isoToLocalInput(localInputToIso('2030-09-08T18:30:00'))).toBe('2030-09-08T18:30');
+  it('handles midnight and the last minute of the day', () => {
+    expect(isoToDateAndTime(dateAndTimeToIso('2030-09-08', '00:00')).time).toBe('00:00');
+    expect(isoToDateAndTime(dateAndTimeToIso('2030-09-08', '23:59')).time).toBe('23:59');
   });
 
-  it('returns null for an empty or missing value, meaning a whenever goal', () => {
-    expect(localInputToIso('')).toBeNull();
-    expect(localInputToIso(null)).toBeNull();
-    expect(localInputToIso(undefined)).toBeNull();
+  it('returns null when both parts are missing, which means a whenever goal', () => {
+    expect(dateAndTimeToIso('', '')).toBeNull();
+    expect(dateAndTimeToIso(null, undefined)).toBeNull();
   });
 
-  it('returns null rather than throwing on an unparseable value', () => {
-    // A browser without datetime-local support renders a plain text box, so anything can arrive.
-    expect(localInputToIso('tomorrow evening')).toBeNull();
-    expect(localInputToIso('08/09/2030 6:30 pm')).toBeNull();
-    // Date-only: the student has not chosen a time yet, so there is nothing to post.
-    expect(localInputToIso('2030-09-08')).toBeNull();
+  it('returns null when only one half is filled in', () => {
+    // The form turns this into "Pick a time as well" rather than posting a timeless goal.
+    expect(dateAndTimeToIso('2030-09-08', '')).toBeNull();
+    expect(dateAndTimeToIso('', '18:30')).toBeNull();
+  });
+
+  it('returns null rather than throwing on values it cannot read', () => {
+    // A browser without native date support renders a plain text box, so anything can arrive.
+    expect(dateAndTimeToIso('08/09/2030', '6:30 pm')).toBeNull();
+    expect(dateAndTimeToIso('tomorrow', 'evening')).toBeNull();
+    expect(dateAndTimeToIso('2030-09-08', '25:00')).toBeNull();
+    expect(dateAndTimeToIso('2030-09-08', '18:75')).toBeNull();
   });
 
   it('rejects a calendar date that does not exist instead of rolling it over', () => {
     // new Date(2030, 1, 31) silently becomes 3 March, which is not what anyone picked.
-    expect(localInputToIso('2030-02-31T18:30')).toBeNull();
+    expect(dateAndTimeToIso('2030-02-31', '18:30')).toBeNull();
   });
 
-  it('handles midnight and the last minute of the day', () => {
-    expect(isoToLocalInput(localInputToIso('2030-09-08T00:00'))).toBe('2030-09-08T00:00');
-    expect(isoToLocalInput(localInputToIso('2030-09-08T23:59'))).toBe('2030-09-08T23:59');
+  it('accepts 29 February in a leap year', () => {
+    expect(dateAndTimeToIso('2032-02-29', '18:30')).not.toBeNull();
+    expect(dateAndTimeToIso('2030-02-29', '18:30')).toBeNull();
   });
 });
 
-describe('isoToLocalInput', () => {
-  it('returns an empty string for a goal with no time', () => {
-    expect(isoToLocalInput(null)).toBe('');
-    expect(isoToLocalInput('')).toBe('');
+describe('isoToDateAndTime', () => {
+  it('returns empty strings for a goal with no time', () => {
+    expect(isoToDateAndTime(null)).toEqual({ date: '', time: '' });
+    expect(isoToDateAndTime('')).toEqual({ date: '', time: '' });
   });
 
-  it('returns an empty string rather than NaN padding for a corrupt instant', () => {
-    expect(isoToLocalInput('not-a-date')).toBe('');
+  it('returns empty strings rather than NaN padding for a corrupt instant', () => {
+    expect(isoToDateAndTime('not-a-date')).toEqual({ date: '', time: '' });
   });
 });
