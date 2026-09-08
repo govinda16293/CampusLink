@@ -1,0 +1,20 @@
+site_name: CampusLink
+site_description: A goal-matching and resource-sharing platform for college campuses.
+repo_url: https://github.com/govinda16293/CampusLink
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+nav:
+  - Home: index.md
+  - Problem: problem.md
+  - Solution: solution.md
+  - Architecture: architecture.md
+  - Evaluation: evaluation.md
+  - Journals:
+      - Govind: journals/govind-csed.md
+      - Teammate 1: journals/teammate-1.md
+      - Teammate 2: journals/teammate-2.md
+
