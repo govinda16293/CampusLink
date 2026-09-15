@@ -98,23 +98,20 @@ export function CreateGoalPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-3xl font-bold tracking-tight text-white">Post a goal</h1>
-      <p className="mt-2 text-sm text-white/60">
+      <h1 className="text-[2rem] font-bold leading-tight tracking-tight text-label">Post a goal</h1>
+      <p className="mt-2 text-[15px] text-label-on-backdrop">
         Say what you want to do and how many people you need. It goes on the campus feed straight
         away.
       </p>
 
       <form
         onSubmit={handleSubmit}
-        className="frost-panel mt-8 space-y-6 rounded-3xl p-7 sm:p-8"
+        className="glass mt-8 space-y-6 rounded-4xl p-6 sm:p-8"
         noValidate
       >
-        <Alert variant="dark" tone="error">
-          {form.formError?.message}
-        </Alert>
+        <Alert tone="error">{form.formError?.message}</Alert>
 
         <Select
-          variant="dark"
           label="Category"
           name="category"
           value={form.values.category}
@@ -124,7 +121,6 @@ export function CreateGoalPage() {
         />
 
         <Field
-          variant="dark"
           label="Title"
           name="title"
           type="text"
@@ -135,7 +131,10 @@ export function CreateGoalPage() {
         />
 
         <div>
-          <label htmlFor="goal-description" className="block text-sm font-medium text-white/70">
+          <label
+            htmlFor="goal-description"
+            className="block pl-1 text-[13px] font-semibold text-label-secondary"
+          >
             Description
           </label>
           <textarea
@@ -146,23 +145,18 @@ export function CreateGoalPage() {
             value={form.values.description}
             onChange={form.handleChange}
             aria-invalid={form.fieldErrors.description ? 'true' : undefined}
-            className={[
-              'mt-2 block w-full rounded-xl border-0 bg-white/6 px-4 py-3.5 text-white',
-              'placeholder:text-white/40 ring-1 ring-inset focus:ring-2 focus:outline-none',
-              form.fieldErrors.description
-                ? 'ring-red-400/60 focus:ring-red-400'
-                : 'ring-white/12 focus:ring-amber-400/70',
-            ].join(' ')}
+            className="glass-field mt-1.5 block w-full resize-y rounded-2xl border-0 px-4 py-3.5 text-[15px]"
           />
           {form.fieldErrors.description && (
-            <p className="mt-2 text-sm text-red-300">{form.fieldErrors.description}</p>
+            <p className="mt-1.5 pl-1 text-[13px] font-medium text-danger-text">
+              {form.fieldErrors.description}
+            </p>
           )}
         </div>
 
         <div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field
-              variant="dark"
               label="Date"
               name="whenDate"
               type="date"
@@ -171,7 +165,6 @@ export function CreateGoalPage() {
               onChange={(event) => setWhen(event.target.value, whenTime)}
             />
             <Field
-              variant="dark"
               label="Time"
               name="whenTime"
               type="time"
@@ -183,20 +176,21 @@ export function CreateGoalPage() {
           {/* Echoing the parsed result back is what makes a dropped time obvious before posting
               rather than after, which is how the original bug went unnoticed for two days. */}
           {form.fieldErrors.dateTime || whenError ? (
-            <p className="mt-2 text-sm text-red-300">{form.fieldErrors.dateTime ?? whenError}</p>
+            <p className="mt-1.5 pl-1 text-[13px] font-medium text-danger-text">
+              {form.fieldErrors.dateTime ?? whenError}
+            </p>
           ) : form.values.dateTime ? (
-            <p className="mt-2 text-sm text-amber-200/80">
+            <p className="mt-1.5 pl-1 text-[13px] font-medium text-link">
               Posting for {formatGoalWhen(form.values.dateTime)}.
             </p>
           ) : (
-            <p className="mt-2 text-sm text-white/35">
+            <p className="mt-1.5 pl-1 text-[13px] text-label-secondary">
               Leave the time empty for a whenever goal — it stays on the feed for 48 hours.
             </p>
           )}
         </div>
 
         <Field
-          variant="dark"
           label="People needed"
           name="headcount"
           type="number"
@@ -209,7 +203,6 @@ export function CreateGoalPage() {
         />
 
         <Select
-          variant="dark"
           label="Who can request to join"
           name="genderPreference"
           hint="Useful for things like a late-night ride home."
@@ -234,10 +227,10 @@ export function CreateGoalPage() {
         />
 
         <div className="flex gap-3 pt-2">
-          <Button variant="amber" type="submit" loading={form.submitting}>
+          <Button type="submit" loading={form.submitting}>
             {form.submitting ? 'Posting…' : 'Post goal'}
           </Button>
-          <Button variant="darkGhost" onClick={() => navigate('/')}>
+          <Button variant="secondary" onClick={() => navigate('/')}>
             Cancel
           </Button>
         </div>

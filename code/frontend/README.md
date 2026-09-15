@@ -12,8 +12,17 @@ schemas are imported from `../shared`, so a form reports the same errors the API
 
 ## Layout
 
-`src/components/ui/` holds all presentation and `src/pages/` holds only logic, so a restyle is a
-contained change — the dark-and-amber theme was applied without touching a single page.
+`src/components/ui/` holds the presentation and `src/pages/` holds the logic and copy. Every
+colour and material lives in `src/index.css` as a token — the Liquid Glass theme's `.glass`,
+`.glass-bar` and `.glass-control` surfaces, and semantic colours such as `text-label-secondary` and
+`bg-accent` — so a restyle is a change to that file and the `ui/` components.
+
+## Theme
+
+Apple Liquid Glass (iOS 26) over a blurred campus photograph (`src/assets/backdrop.jpg`): light
+translucent panels with a specular rim, capsule controls, a floating tab bar with a sliding
+selection, and dark SF labels. Every text colour was measured on the rendered glass and holds at
+least 4.5:1. Reduced-transparency and reduced-motion settings are honoured.
 
 ## Views
 

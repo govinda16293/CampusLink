@@ -56,27 +56,24 @@ export function EditProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-3xl font-bold tracking-tight text-white">Edit your profile</h1>
-      <p className="mt-2 text-sm text-white/60">
+      <h1 className="text-[2rem] font-bold leading-tight tracking-tight text-label">
+        Edit your profile
+      </h1>
+      <p className="mt-2 text-[15px] text-label-on-backdrop">
         Branch and interests are what we use to suggest goals worth joining.
       </p>
 
       <form
         onSubmit={form.handleSubmit}
-        className="frost-panel mt-8 space-y-6 rounded-3xl p-7 sm:p-8"
+        className="glass mt-8 space-y-6 rounded-4xl p-6 sm:p-8"
         noValidate
       >
-        <Alert variant="dark" tone="error">
-          {form.formError?.message}
-        </Alert>
-        <Alert variant="dark" tone="success">
-          {saved ? 'Profile saved.' : null}
-        </Alert>
+        <Alert tone="error">{form.formError?.message}</Alert>
+        <Alert tone="success">{saved ? 'Profile saved.' : null}</Alert>
 
         <AvatarUpload user={user} onChange={updateUser} />
 
         <Field
-          variant="dark"
           label="Full name"
           name="name"
           type="text"
@@ -87,7 +84,6 @@ export function EditProfilePage() {
         />
 
         <Select
-          variant="dark"
           label="Branch"
           name="branch"
           placeholder="Select your programme"
@@ -98,7 +94,6 @@ export function EditProfilePage() {
         />
 
         <Select
-          variant="dark"
           label="Year of study"
           name="year"
           placeholder="Select your year"
@@ -111,7 +106,6 @@ export function EditProfilePage() {
         />
 
         <Select
-          variant="dark"
           label="Gender"
           name="gender"
           hint="Used only for the gender filter on goals, where a poster restricts who can join."
@@ -122,7 +116,6 @@ export function EditProfilePage() {
         />
 
         <InterestsInput
-          variant="dark"
           label="Interests"
           value={form.values.interests}
           onChange={(interests) => {
@@ -134,10 +127,10 @@ export function EditProfilePage() {
         />
 
         <div className="flex gap-3 pt-2">
-          <Button variant="amber" type="submit" loading={form.submitting}>
+          <Button type="submit" loading={form.submitting}>
             {form.submitting ? 'Saving…' : 'Save profile'}
           </Button>
-          <Button variant="darkGhost" onClick={() => navigate('/profile')}>
+          <Button variant="secondary" onClick={() => navigate('/profile')}>
             Cancel
           </Button>
         </div>

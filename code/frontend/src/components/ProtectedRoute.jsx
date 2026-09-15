@@ -16,7 +16,7 @@ export function ProtectedRoute() {
   // users who turn out to be signed in.
   if (status === 'loading') {
     return (
-      <div className="flex min-h-full items-center justify-center p-8 text-sm text-slate-500">
+      <div className="flex min-h-full items-center justify-center p-8 text-sm text-label-secondary">
         Loading…
       </div>
     );

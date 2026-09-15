@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { ButtonLink } from './ui/Button';
 
 const FIELD_LABEL = {
   branch: 'branch',
@@ -44,18 +44,18 @@ export function ProfileNudge() {
   }
 
   return (
-    <section className="frost-panel rounded-3xl p-6">
+    <section className="glass rounded-[1.75rem] p-5 sm:p-6">
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-amber-300">
+          <h2 className="text-[15px] font-semibold text-label">
             Your profile is {completeness}% complete
           </h2>
-          <p className="mt-1 text-sm text-white/65">
+          <p className="mt-1 text-sm text-label-secondary">
             Add your {missing.slice(0, 2).join(' and ')} so we can suggest goals worth joining.
           </p>
 
           <div
-            className="mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-white/10"
+            className="mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-black/8 shadow-[inset_0_1px_1px_rgb(20_36_70/0.1)]"
             role="progressbar"
             aria-valuenow={completeness}
             aria-valuemin={0}
@@ -63,24 +63,21 @@ export function ProfileNudge() {
             aria-label="Profile completeness"
           >
             <div
-              className="h-full rounded-full bg-amber-400 transition-all"
+              className="h-full rounded-full bg-linear-to-r from-[#5ac8fa] to-accent transition-all"
               style={{ width: `${completeness}%` }}
             />
           </div>
 
-          <Link
-            to="/profile/edit"
-            className="mt-4 inline-block text-sm font-semibold text-amber-300 underline underline-offset-4 hover:text-amber-200"
-          >
+          <ButtonLink to="/profile/edit" variant="secondary" size="sm" className="mt-4">
             Complete your profile
-          </Link>
+          </ButtonLink>
         </div>
 
         <button
           type="button"
           onClick={dismiss}
           aria-label="Dismiss"
-          className="rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+          className="glass-control rounded-full p-2 text-label-secondary transition duration-300 ease-spring hover:text-label active:scale-[1.06] focus-visible:outline-2 focus-visible:outline-accent"
         >
           <svg
             viewBox="0 0 20 20"

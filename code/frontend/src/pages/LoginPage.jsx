@@ -34,10 +34,7 @@ export function LoginPage() {
       footer={
         <>
           Don&apos;t have an account?{' '}
-          <Link
-            to="/signup"
-            className="font-semibold text-brand-300 underline underline-offset-4 hover:text-brand-200"
-          >
+          <Link to="/signup" className="font-semibold text-link underline-offset-4 hover:underline">
             Create one
           </Link>
         </>
@@ -58,7 +55,7 @@ export function LoginPage() {
         </Alert>
 
         <Field
-          variant="glass"
+          hideLabel
           icon={MailIcon}
           label="College email"
           placeholder="Email address"
@@ -71,7 +68,7 @@ export function LoginPage() {
         />
 
         <Field
-          variant="glass"
+          hideLabel
           icon={LockIcon}
           label="Password"
           placeholder="Password"
@@ -87,7 +84,7 @@ export function LoginPage() {
           <Link
             to="/verify"
             state={{ email: form.values.email }}
-            className="text-sm text-white/75 underline-offset-4 hover:text-white hover:underline"
+            className="text-sm font-medium text-link underline-offset-4 hover:underline"
           >
             Forgot password?
           </Link>

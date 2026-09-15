@@ -7,9 +7,11 @@ import { MAX_INTEREST_LENGTH, MAX_INTERESTS } from '@campuslink/shared';
  * Interests feed the suggestion scoring in Step 10, so duplicates are rejected case-insensitively
  * here as well as on the server — catching it in the UI means a student sees why nothing happened
  * instead of watching their tag silently vanish on save.
+ *
+ * The whole box is the glass well, so it takes the same focus and error rings as a single input;
+ * the chips are accent-tinted capsules, like recipients in Mail.
  */
-export function InterestsInput({ label, value = [], onChange, error, hint, variant = 'solid' }) {
-  const dark = variant === 'dark';
+export function InterestsInput({ label, value = [], onChange, error, hint }) {
   const [draft, setDraft] = useState('');
   const [localError, setLocalError] = useState(null);
 
@@ -55,40 +57,28 @@ export function InterestsInput({ label, value = [], onChange, error, hint, varia
     <div>
       <label
         htmlFor="interest-draft"
-        className={`block text-sm font-medium ${dark ? 'text-white/70' : 'text-slate-700'}`}
+        className="block pl-1 text-[13px] font-semibold text-label-secondary"
       >
         {label}
       </label>
 
       <div
-        className={[
-          'mt-1.5 rounded-xl p-2 shadow-sm ring-1 ring-inset focus-within:ring-2',
-          dark
-            ? 'bg-white/6 ring-white/12 focus-within:ring-amber-400/70'
-            : 'bg-white ring-slate-300 focus-within:ring-brand-600',
-        ].join(' ')}
+        data-invalid={message ? 'true' : undefined}
+        className="glass-field mt-1.5 rounded-2xl p-2"
       >
         {value.length > 0 && (
           <ul className="mb-2 flex flex-wrap gap-2">
             {value.map((interest) => (
               <li
                 key={interest}
-                className={[
-                  'inline-flex items-center gap-1.5 rounded-full py-1 pl-3 pr-1.5 text-sm font-medium',
-                  dark ? 'bg-amber-400/15 text-amber-200' : 'bg-brand-50 text-brand-700',
-                ].join(' ')}
+                className="inline-flex items-center gap-1.5 rounded-full bg-accent/12 py-1 pl-3 pr-1.5 text-sm font-medium text-link ring-1 ring-inset ring-accent/15"
               >
                 {interest}
                 <button
                   type="button"
                   onClick={() => onChange(value.filter((i) => i !== interest))}
                   aria-label={`Remove ${interest}`}
-                  className={[
-                    'rounded-full p-0.5 transition-colors',
-                    dark
-                      ? 'text-amber-300/70 hover:bg-amber-400/20 hover:text-amber-100'
-                      : 'text-brand-500 hover:bg-brand-100 hover:text-brand-800',
-                  ].join(' ')}
+                  className="rounded-full p-0.5 text-link/70 transition-colors hover:bg-accent/15 hover:text-link"
                 >
                   <svg
                     viewBox="0 0 20 20"
@@ -118,19 +108,14 @@ export function InterestsInput({ label, value = [], onChange, error, hint, varia
           onBlur={addInterest}
           maxLength={MAX_INTEREST_LENGTH}
           placeholder={value.length ? 'Add another…' : 'gym, chess, badminton…'}
-          className={[
-            'w-full border-0 bg-transparent px-2 py-1.5 focus:outline-none',
-            dark
-              ? 'text-white placeholder:text-white/40'
-              : 'text-slate-900 placeholder:text-slate-400',
-          ].join(' ')}
+          className="w-full border-0 bg-transparent px-2 py-1.5 text-[15px] text-label focus:outline-none"
         />
       </div>
 
       {message ? (
-        <p className={`mt-1.5 text-sm ${dark ? 'text-red-300' : 'text-red-600'}`}>{message}</p>
+        <p className="mt-1.5 pl-1 text-[13px] font-medium text-danger-text">{message}</p>
       ) : hint ? (
-        <p className={`mt-2 text-sm ${dark ? 'text-white/35' : 'text-slate-500'}`}>{hint}</p>
+        <p className="mt-1.5 pl-1 text-[13px] text-label-secondary">{hint}</p>
       ) : null}
     </div>
   );

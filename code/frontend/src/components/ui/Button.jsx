@@ -1,48 +1,49 @@
+import { Link } from 'react-router-dom';
 import { ArrowRightIcon } from './icons';
 
 /**
- * Presentational button.
+ * Presentational buttons, in the capsule shapes of the Liquid Glass design.
  *
  * Every visual decision for buttons lives here, so restyling is a change to this file rather
- * than a hunt through every page. Pages pass intent (`variant`, `loading`, `withArrow`), never
- * class names.
+ * than a hunt through every page. Pages pass intent (`variant`, `size`, `loading`, `withArrow`),
+ * never class names for colour or shape.
+ *
+ * On press a button swells slightly and springs back, the way iOS 26 glass controls answer a
+ * touch, rather than sinking like a flat web button.
  */
 const VARIANTS = {
-  // The terracotta gradient from the design's primary action.
-  primary: [
-    'bg-gradient-to-r from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-900/25',
-    'hover:from-brand-400 hover:to-brand-600 focus-visible:outline-white',
-    'disabled:from-brand-500/50 disabled:to-brand-700/50 disabled:shadow-none',
-  ].join(' '),
+  // Tinted glass in the accent colour — the one main action on a screen.
+  primary: 'btn-prominent text-white disabled:opacity-45',
 
-  // Sits on the frosted card: translucent, light border, white text.
-  glass: [
-    'bg-white/12 text-white ring-1 ring-inset ring-white/30 backdrop-blur-sm',
-    'hover:bg-white/20 focus-visible:outline-white disabled:text-white/40',
-  ].join(' '),
+  // Clear glass — secondary actions, and anything sitting beside a primary.
+  secondary: 'glass-control text-label hover:bg-white/30 disabled:text-label-tertiary',
 
-  ghostLight: 'text-white/85 hover:text-white focus-visible:outline-white disabled:text-white/35',
-
-  // The signed-in app's primary action — the amber pill from the design.
-  amber: [
-    'bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20',
-    'hover:bg-amber-300 focus-visible:outline-amber-300 disabled:bg-amber-400/40 disabled:text-slate-950/50',
-  ].join(' '),
-
-  // Secondary action on a dark surface.
-  darkGhost: [
-    'bg-white/8 text-white ring-1 ring-inset ring-white/15',
-    'hover:bg-white/14 focus-visible:outline-white/60 disabled:text-white/35',
-  ].join(' '),
-
-  // For the solid-background pages (home, and the profile screens in Step 2).
-  secondary:
-    'bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline-brand-600 disabled:text-slate-400',
+  // Text only — low-emphasis actions such as "Resend code".
+  plain: 'text-link hover:text-accent-hover disabled:text-label-tertiary',
 };
+
+const SIZES = {
+  md: 'min-h-12 px-6 text-[15px]',
+  sm: 'min-h-9 px-4 text-[13px]',
+};
+
+/** The class list for a button, shared with ButtonLink so the two can never drift apart. */
+function buttonClasses({ variant = 'primary', size = 'md', className = '' }) {
+  return [
+    'inline-flex items-center justify-center gap-2 rounded-full font-semibold select-none',
+    'transition duration-300 ease-spring active:scale-[1.04]',
+    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+    'disabled:cursor-not-allowed disabled:active:scale-100',
+    VARIANTS[variant],
+    SIZES[size],
+    className,
+  ].join(' ');
+}
 
 export function Button({
   children,
   variant = 'primary',
+  size = 'md',
   loading = false,
   disabled = false,
   withArrow = false,
@@ -55,13 +56,7 @@ export function Button({
       // than one accidental double-submit.
       type="button"
       disabled={disabled || loading}
-      className={[
-        'inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold',
-        'transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
-        'disabled:cursor-not-allowed',
-        VARIANTS[variant],
-        className,
-      ].join(' ')}
+      className={buttonClasses({ variant, size, className })}
       {...props}
     >
       {loading && (
@@ -73,5 +68,27 @@ export function Button({
       {children}
       {withArrow && !loading && <ArrowRightIcon className="size-4" />}
     </button>
+  );
+}
+
+/**
+ * A router link dressed as a button, for actions that navigate ("Post a goal").
+ *
+ * A real <a>, rather than a <button> wrapped in a <Link>: nesting one interactive element in
+ * another is invalid HTML and gives keyboard users two tab stops for a single action.
+ */
+export function ButtonLink({
+  children,
+  variant = 'primary',
+  size = 'md',
+  withArrow = false,
+  className = '',
+  ...props
+}) {
+  return (
+    <Link className={buttonClasses({ variant, size, className })} {...props}>
+      {children}
+      {withArrow && <ArrowRightIcon className="size-4" />}
+    </Link>
   );
 }

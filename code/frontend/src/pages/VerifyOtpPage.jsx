@@ -64,7 +64,7 @@ export function VerifyOtpPage() {
         <Alert tone="info">{resendState.message}</Alert>
 
         <Field
-          variant="glass"
+          hideLabel
           icon={KeyIcon}
           label="Verification code"
           name="code"
@@ -89,10 +89,10 @@ export function VerifyOtpPage() {
 
         <div className="text-center">
           <Button
-            variant="ghostLight"
+            variant="plain"
+            size="sm"
             onClick={handleResend}
             disabled={resendState.cooldown > 0}
-            className="text-sm"
           >
             {resendState.cooldown > 0
               ? `Resend code in ${resendState.cooldown}s`
@@ -101,9 +101,9 @@ export function VerifyOtpPage() {
         </div>
       </form>
 
-      <p className="mt-6 border-t border-white/20 pt-4 text-xs text-white/65">
+      <p className="mt-6 border-t border-separator pt-4 text-xs text-label-secondary">
         Developing locally? The code is printed in the terminal running{' '}
-        <code className="font-mono text-white/85">npm run dev</code> — no real email is sent.
+        <code className="font-mono text-label">npm run dev</code> — no real email is sent.
       </p>
     </AuthLayout>
   );

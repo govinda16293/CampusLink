@@ -50,7 +50,9 @@ export function AvatarUpload({ user, onChange }) {
 
   return (
     <div>
-      <span className="block text-sm font-medium text-white/70">Profile photo</span>
+      <span className="block pl-1 text-[13px] font-semibold text-label-secondary">
+        Profile photo
+      </span>
 
       <div className="mt-2 flex flex-wrap items-center gap-4">
         <Avatar name={user?.name} id={user?.id} photoUrl={user?.photoUrl} size="md" />
@@ -64,21 +66,21 @@ export function AvatarUpload({ user, onChange }) {
           aria-label="Choose a profile photo"
         />
 
-        <Button variant="darkGhost" loading={busy} onClick={() => inputRef.current?.click()}>
+        <Button variant="secondary" loading={busy} onClick={() => inputRef.current?.click()}>
           {user?.photoUrl ? 'Change photo' : 'Upload photo'}
         </Button>
 
         {user?.photoUrl && (
-          <Button variant="ghostLight" disabled={busy} onClick={handleRemove} className="text-sm">
+          <Button variant="plain" size="sm" disabled={busy} onClick={handleRemove}>
             Remove
           </Button>
         )}
       </div>
 
       {error ? (
-        <p className="mt-2 text-sm text-red-300">{error}</p>
+        <p className="mt-2 pl-1 text-[13px] font-medium text-danger-text">{error}</p>
       ) : (
-        <p className="mt-2 text-sm text-white/35">
+        <p className="mt-2 pl-1 text-[13px] text-label-secondary">
           Square crop, resized in your browser before upload. JPEG, PNG or WebP.
         </p>
       )}

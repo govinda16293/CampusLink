@@ -29,10 +29,7 @@ export function SignupPage() {
       footer={
         <>
           Already have an account?{' '}
-          <Link
-            to="/login"
-            className="font-semibold text-brand-300 underline underline-offset-4 hover:text-brand-200"
-          >
+          <Link to="/login" className="font-semibold text-link underline-offset-4 hover:underline">
             Sign in
           </Link>
         </>
@@ -42,7 +39,7 @@ export function SignupPage() {
         <Alert tone="error">{form.formError?.message}</Alert>
 
         <Field
-          variant="glass"
+          hideLabel
           icon={UserIcon}
           label="Full name"
           placeholder="Full name"
@@ -55,7 +52,7 @@ export function SignupPage() {
         />
 
         <Field
-          variant="glass"
+          hideLabel
           icon={MailIcon}
           label="College email"
           placeholder={`yourname@${ALLOWED_EMAIL_DOMAIN}`}
@@ -68,7 +65,7 @@ export function SignupPage() {
         />
 
         <Field
-          variant="glass"
+          hideLabel
           icon={LockIcon}
           label="Password"
           placeholder="Password"

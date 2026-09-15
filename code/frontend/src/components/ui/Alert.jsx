@@ -1,20 +1,14 @@
+/*
+ * Tinted glass: a pale wash of the tone over the panel. A thin tint alone turned grey-lilac over
+ * the blue top of the auth card, so the light appearance washes the tone over white; the dark
+ * appearance (signed-out screens) swaps in translucent tints that sit on dark glass. Both are
+ * defined as --alert-*-bg in index.css. The text uses the darkened `-text` variants — the bright
+ * system red and green are fine as a wash but fall below a readable ratio as small text.
+ */
 const TONES = {
-  error: 'bg-red-500/20 text-red-50 ring-red-300/40',
-  success: 'bg-emerald-500/20 text-emerald-50 ring-emerald-300/40',
-  info: 'bg-white/15 text-white ring-white/30',
-};
-
-const SOLID_TONES = {
-  error: 'bg-red-50 text-red-800 ring-red-200',
-  success: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-  info: 'bg-brand-50 text-brand-700 ring-brand-100',
-};
-
-/** On the dark app backdrop. */
-const DARK_TONES = {
-  error: 'bg-red-500/15 text-red-200 ring-red-400/30',
-  success: 'bg-emerald-500/15 text-emerald-200 ring-emerald-400/30',
-  info: 'bg-amber-400/12 text-amber-100 ring-amber-300/25',
+  error: 'bg-[var(--alert-error-bg)] text-danger-text ring-danger/30',
+  success: 'bg-[var(--alert-success-bg)] text-positive-text ring-positive/35',
+  info: 'bg-[var(--alert-info-bg)] text-link ring-accent/25',
 };
 
 /**
@@ -24,19 +18,17 @@ const DARK_TONES = {
  * `role="alert"` so it is announced when it appears; without it a screen-reader user submitting
  * a form gets no feedback that anything went wrong.
  */
-export function Alert({ tone = 'info', variant = 'glass', children, className = '' }) {
+export function Alert({ tone = 'info', children, className = '' }) {
   // Multiple children arrive as an array, and `[undefined, false]` is itself truthy — so a
   // plain `if (!children)` guard would render an empty coloured bar whenever there is no error
   // to show. Check for actually-renderable content instead.
   const hasContent = Array.isArray(children) ? children.some(Boolean) : Boolean(children);
   if (!hasContent) return null;
 
-  const palette = { glass: TONES, solid: SOLID_TONES, dark: DARK_TONES }[variant] ?? TONES;
-
   return (
     <div
       role="alert"
-      className={`rounded-xl px-4 py-3 text-sm ring-1 ring-inset ${palette[tone]} ${className}`}
+      className={`rounded-2xl px-4 py-3 text-sm font-medium ring-1 ring-inset ${TONES[tone]} ${className}`}
     >
       {children}
     </div>

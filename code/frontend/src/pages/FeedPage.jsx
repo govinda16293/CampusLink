@@ -1,12 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { GOAL_CATEGORIES, GOAL_CATEGORY_LABEL } from '@campuslink/shared';
 import { goalsApi } from '../api/goals';
 import { useAuthStore } from '../store/authStore';
 import { GoalCard } from '../components/GoalCard';
 import { ProfileNudge } from '../components/ProfileNudge';
 import { Alert } from '../components/ui/Alert';
-import { Button } from '../components/ui/Button';
+import { Button, ButtonLink } from '../components/ui/Button';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
+import { CATEGORY_ICON } from '../components/ui/CategoryBadge';
+
+/*
+ * The filter row is one segmented control. "All", each category and "My goals" are mutually
+ * exclusive, so a single value describes the whole state.
+ */
+const FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All' },
+  ...GOAL_CATEGORIES.map((category) => ({
+    value: category,
+    label: GOAL_CATEGORY_LABEL[category],
+    icon: CATEGORY_ICON[category],
+  })),
+  { value: 'MINE', label: 'My goals' },
+];
 
 /**
  * The public campus feed.
@@ -60,69 +75,54 @@ export function FeedPage() {
     }
   }
 
+  // Choosing "My goals" again switches it back off, as the old toggle chip did.
+  function handleFilter(value) {
+    if (value === 'MINE') setFilters({ category: '', mine: !filters.mine });
+    else setFilters({ category: value === 'ALL' ? '' : value, mine: false });
+  }
+
+  const filterValue = filters.mine ? 'MINE' : filters.category || 'ALL';
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+          <h1 className="text-4xl font-bold tracking-[-0.03em] text-label sm:text-5xl">
             Hey {user?.name?.split(' ')[0]}
           </h1>
-          <p className="mt-2 text-sm text-white/60">
+          <p className="mt-2 text-[15px] text-label-on-backdrop">
             Post a goal, or join one someone else has posted.
           </p>
         </div>
-        <Link to="/goals/new">
-          <Button variant="amber" withArrow>
-            Post a goal
-          </Button>
-        </Link>
+        <ButtonLink to="/goals/new" withArrow>
+          Post a goal
+        </ButtonLink>
       </header>
 
       <ProfileNudge />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <FilterChip
-          active={!filters.category && !filters.mine}
-          onClick={() => setFilters({ category: '', mine: false })}
-        >
-          All
-        </FilterChip>
-        {GOAL_CATEGORIES.map((category) => (
-          <FilterChip
-            key={category}
-            active={filters.category === category}
-            onClick={() => setFilters({ category, mine: false })}
-          >
-            {GOAL_CATEGORY_LABEL[category]}
-          </FilterChip>
-        ))}
-        <FilterChip
-          active={filters.mine}
-          onClick={() => setFilters({ category: '', mine: !filters.mine })}
-        >
-          My goals
-        </FilterChip>
-      </div>
+      <SegmentedControl
+        label="Filter goals"
+        options={FILTER_OPTIONS}
+        value={filterValue}
+        onChange={handleFilter}
+      />
 
-      {state.status === 'error' && (
-        <Alert variant="dark" tone="error">
-          {state.error.message}
-        </Alert>
-      )}
+      {state.status === 'error' && <Alert tone="error">{state.error.message}</Alert>}
 
       {state.status === 'loading' && (
-        <p className="py-12 text-center text-sm text-white/45">Loading the feed…</p>
+        <p className="py-12 text-center text-sm text-label-secondary">Loading the feed…</p>
       )}
 
       {state.status === 'ready' && state.goals.length === 0 && (
-        <div className="frost-panel rounded-2xl p-10 text-center">
-          <p className="text-white/70">
+        <div className="glass rounded-[1.75rem] p-10 text-center">
+          <p className="text-[17px] font-semibold text-label">
             {filters.mine ? 'You have not posted any goals yet.' : 'Nothing on the feed right now.'}
           </p>
-          <p className="mt-1 text-sm text-white/45">Be the first to post one.</p>
-          <Link to="/goals/new" className="mt-5 inline-block">
-            <Button variant="amber">Post a goal</Button>
-          </Link>
+          <p className="mt-1 text-sm text-label-secondary">Be the first to post one.</p>
+          <ButtonLink to="/goals/new" className="mt-5">
+            Post a goal
+          </ButtonLink>
         </div>
       )}
 
@@ -138,29 +138,11 @@ export function FeedPage() {
 
       {state.nextCursor && (
         <div className="flex justify-center">
-          <Button variant="darkGhost" loading={loadingMore} onClick={loadMore}>
+          <Button variant="secondary" loading={loadingMore} onClick={loadMore}>
             Load more
           </Button>
         </div>
       )}
     </div>
-  );
-}
-
-function FilterChip({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={[
-        'rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
-        active
-          ? 'bg-amber-400 text-slate-950'
-          : 'bg-white/6 text-white/65 ring-1 ring-inset ring-white/10 hover:bg-white/12 hover:text-white',
-      ].join(' ')}
-    >
-      {children}
-    </button>
   );
 }

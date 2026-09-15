@@ -1,24 +1,21 @@
 /**
  * A student's photo, or their initials on a colour derived from their id.
  *
- * Photo upload does not exist until Step 7, so almost every avatar is initials for now. Deriving
- * the colour from the id rather than picking at random means the same person is the same colour
- * everywhere in the app, which makes them recognisable in a lobby list at a glance.
+ * Deriving the colour from the id rather than picking at random means the same person is the
+ * same colour everywhere in the app, which makes them recognisable in a lobby list at a glance.
  */
 /*
- * Deliberately dark and desaturated. A bright disc reads as a coloured blob rather than as a
- * stand-in for a photograph, and next to the amber halo on the profile page a saturated colour
- * clashes badly. These still differ per person, which is the point — the same student is the
- * same colour everywhere, so they stay recognisable in a lobby list.
+ * Soft top-to-bottom gradients in the system colours, as Apple draws contact avatars. Each is
+ * deep enough at the bottom to carry white initials.
  */
-const COLOURS = [
-  'bg-slate-700',
-  'bg-teal-800',
-  'bg-indigo-800',
-  'bg-stone-700',
-  'bg-emerald-800',
-  'bg-violet-900',
-  'bg-cyan-900',
+const GRADIENTS = [
+  'from-[#5aa9ff] to-[#0a66e0]',
+  'from-[#8583f0] to-[#4b48c9]',
+  'from-[#52c7d8] to-[#1a8fa8]',
+  'from-[#5fd07a] to-[#1f9a45]',
+  'from-[#ffb04d] to-[#f07400]',
+  'from-[#ff7a9c] to-[#e0325c]',
+  'from-[#c47ae8] to-[#8e3fc4]',
 ];
 
 function initialsOf(name = '') {
@@ -28,10 +25,10 @@ function initialsOf(name = '') {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function colourFor(id = '') {
+function gradientFor(id = '') {
   let hash = 0;
   for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return COLOURS[hash % COLOURS.length];
+  return GRADIENTS[hash % GRADIENTS.length];
 }
 
 export function Avatar({ name, id, photoUrl, size = 'md', halo = false, className = '' }) {
@@ -42,21 +39,21 @@ export function Avatar({ name, id, photoUrl, size = 'md', halo = false, classNam
     xl: 'size-40 text-4xl',
   };
 
-  // The amber halo from the design. Purely decorative, so it never carries meaning.
-  const glow = halo ? 'avatar-halo' : '';
+  // The glass ring around the profile hero. Purely decorative, so it never carries meaning.
+  const ring = halo ? 'avatar-halo' : '';
 
-  // A haloed avatar is the profile hero, standing in for a photograph. It gets a neutral disc:
-  // the amber glow is the focal point there, and any saturated colour competes with it. The
-  // per-person colours are for small avatars in lists, where they aid recognition and the name
-  // is not already six times the size next to them.
-  const disc = halo ? 'bg-slate-800/90 text-white/85' : `${colourFor(id)} text-white`;
+  // A haloed avatar is the profile hero, standing in for a photograph, so it gets Apple's neutral
+  // graphite — the way Contacts shows someone without a picture. The per-person colours are for
+  // small avatars in lists, where they aid recognition and the name is not already six times
+  // the size right next to them.
+  const disc = halo ? 'from-[#b4bac6] to-[#7d8491]' : gradientFor(id);
 
   if (photoUrl) {
     return (
       <img
         src={photoUrl}
         alt=""
-        className={`${sizes[size]} ${glow} shrink-0 rounded-full object-cover ${className}`}
+        className={`${sizes[size]} ${ring} shrink-0 rounded-full object-cover ${className}`}
       />
     );
   }
@@ -64,7 +61,14 @@ export function Avatar({ name, id, photoUrl, size = 'md', halo = false, classNam
   return (
     <span
       aria-hidden="true"
-      className={`${sizes[size]} ${disc} ${glow} inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${className}`}
+      className={[
+        sizes[size],
+        ring,
+        'inline-flex shrink-0 items-center justify-center rounded-full bg-linear-to-b font-semibold text-white',
+        'shadow-[inset_0_1px_1px_rgb(255_255_255/0.45),0_1px_3px_rgb(20_36_70/0.2)] [text-shadow:0_1px_1px_rgb(0_0_0/0.15)]',
+        disc,
+        className,
+      ].join(' ')}
     >
       {initialsOf(name)}
     </span>
