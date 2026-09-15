@@ -27,6 +27,8 @@ const TABS = [
  *
  * It lives at the foot of the screen because that is where a thumb reaches on a phone, which is
  * where the proposal expects most use.
+ *
+ * The selected tab and the post button take the terracotta of every other button in the app.
  */
 export function TabBar() {
   const { pathname } = useLocation();
@@ -59,7 +61,7 @@ export function TabBar() {
                   className={[
                     'relative flex w-20 flex-col items-center gap-0.5 rounded-full py-1.5 text-[11px] font-semibold transition-colors duration-200',
                     'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
-                    active ? 'text-accent' : 'text-label-secondary hover:text-label',
+                    active ? 'text-action' : 'text-label-secondary hover:text-label',
                   ].join(' ')}
                 >
                   <Icon className="size-6" />
@@ -79,7 +81,7 @@ export function TabBar() {
           'glass-bar pointer-events-auto flex size-15.5 items-center justify-center rounded-full',
           'transition duration-300 ease-spring active:scale-[1.06]',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-          posting ? 'text-accent' : 'text-label',
+          posting ? 'text-action' : 'text-label',
         ].join(' ')}
       >
         <PlusIcon className="size-7" />

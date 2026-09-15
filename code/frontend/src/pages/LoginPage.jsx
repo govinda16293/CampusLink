@@ -34,7 +34,10 @@ export function LoginPage() {
       footer={
         <>
           Don&apos;t have an account?{' '}
-          <Link to="/signup" className="font-semibold text-link underline-offset-4 hover:underline">
+          <Link
+            to="/signup"
+            className="font-semibold text-link underline underline-offset-4 hover:text-label"
+          >
             Create one
           </Link>
         </>
@@ -84,7 +87,7 @@ export function LoginPage() {
           <Link
             to="/verify"
             state={{ email: form.values.email }}
-            className="text-sm font-medium text-link underline-offset-4 hover:underline"
+            className="text-sm text-label-secondary underline-offset-4 hover:text-label hover:underline"
           >
             Forgot password?
           </Link>

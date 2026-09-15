@@ -19,7 +19,7 @@ const VARIANTS = {
   secondary: 'glass-control text-label hover:bg-white/30 disabled:text-label-tertiary',
 
   // Text only — low-emphasis actions such as "Resend code".
-  plain: 'text-link hover:text-accent-hover disabled:text-label-tertiary',
+  plain: 'text-action hover:text-label disabled:text-label-tertiary',
 };
 
 const SIZES = {
