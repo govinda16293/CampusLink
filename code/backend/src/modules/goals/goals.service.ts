@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import {
+  GENDER,
   GOAL_STATUS,
   UNDATED_GOAL_TTL_HOURS,
   type createGoalSchema,
@@ -7,7 +8,7 @@ import {
 } from '@campuslink/shared';
 import { prisma } from '../../db/prisma.js';
 import { AppError } from '../../lib/AppError.js';
-import { toGoalDTO } from '../../serializers/goal.serializer.js';
+import { toGoalDTO, type GoalViewerContext } from '../../serializers/goal.serializer.js';
 
 type CreateGoalInput = z.infer<typeof createGoalSchema>;
 type FeedQuery = z.infer<typeof feedQuerySchema>;
@@ -21,6 +22,36 @@ type FeedQuery = z.infer<typeof feedQuerySchema>;
 function expiryFor(dateTime: Date | null): Date {
   if (dateTime) return dateTime;
   return new Date(Date.now() + UNDATED_GOAL_TTL_HOURS * 60 * 60 * 1000);
+}
+
+/**
+ * What the serializer needs to know about the person looking, for any number of goals.
+ *
+ * Two queries whatever the page size: the viewer's gender once, and their requests on exactly
+ * these goals in a single IN lookup. Resolving it per card would turn a feed of twenty goals into
+ * forty queries. Returns a lookup function rather than a map, so no caller can forget a default.
+ */
+export async function viewerContextFor(viewerId: string, goalIds: string[]) {
+  const [viewer, requests] = await Promise.all([
+    prisma.user.findUnique({ where: { id: viewerId }, select: { gender: true } }),
+    goalIds.length > 0
+      ? prisma.joinRequest.findMany({
+          where: { requesterId: viewerId, goalId: { in: goalIds } },
+          select: { id: true, goalId: true, status: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const requestByGoal = new Map(
+    requests.map((request) => [request.goalId, { id: request.id, status: request.status }]),
+  );
+  const viewerGender = viewer?.gender ?? GENDER.UNDISCLOSED;
+
+  return (goalId: string): GoalViewerContext => ({
+    viewerId,
+    viewerGender,
+    viewerRequest: requestByGoal.get(goalId) ?? null,
+  });
 }
 
 export async function createGoal(posterId: string, input: CreateGoalInput) {
@@ -43,7 +74,12 @@ export async function createGoal(posterId: string, input: CreateGoalInput) {
     include: { poster: true },
   });
 
-  return toGoalDTO(goal, { viewerId: posterId });
+  // No lookups needed: it is the poster's own goal, and nobody can have asked to join it yet.
+  return toGoalDTO(goal, {
+    viewerId: posterId,
+    viewerGender: goal.poster.gender,
+    viewerRequest: null,
+  });
 }
 
 /**
@@ -57,7 +93,9 @@ export async function listGoals(viewerId: string, query: FeedQuery) {
   const now = new Date();
 
   const where: Record<string, unknown> = {
-    status: GOAL_STATUS.OPEN,
+    // Discovering a goal means it still has room. A poster's own list also keeps the goals that
+    // have filled: they are no longer on offer, but they are still very much theirs to manage.
+    status: query.mine === 'true' ? { in: [GOAL_STATUS.OPEN, GOAL_STATUS.FULL] } : GOAL_STATUS.OPEN,
     // Undated goals carry a 48-hour expiry, dated ones expire when they happen.
     expiresAt: { gt: now },
   };
@@ -85,8 +123,13 @@ export async function listGoals(viewerId: string, query: FeedQuery) {
   const hasMore = goals.length > query.limit;
   const page = hasMore ? goals.slice(0, query.limit) : goals;
 
+  const contextFor = await viewerContextFor(
+    viewerId,
+    page.map((goal) => goal.id),
+  );
+
   return {
-    goals: page.map((goal) => toGoalDTO(goal, { viewerId })),
+    goals: page.map((goal) => toGoalDTO(goal, contextFor(goal.id))),
     nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null,
   };
 }
@@ -99,7 +142,8 @@ export async function getGoal(viewerId: string, goalId: string) {
 
   if (!goal) throw AppError.notFound('That goal does not exist or has been removed');
 
-  return toGoalDTO(goal, { viewerId });
+  const contextFor = await viewerContextFor(viewerId, [goal.id]);
+  return toGoalDTO(goal, contextFor(goal.id));
 }
 
 /**
@@ -113,7 +157,8 @@ export async function cancelGoal(viewerId: string, goalId: string) {
 
   if (!goal) throw AppError.notFound('That goal does not exist');
   if (goal.posterId !== viewerId) throw AppError.forbidden('That is not your goal to cancel');
-  if (goal.status !== GOAL_STATUS.OPEN) {
+  // A goal that has filled can still be called off; one that is already over cannot.
+  if (goal.status !== GOAL_STATUS.OPEN && goal.status !== GOAL_STATUS.FULL) {
     throw AppError.conflict('That goal is no longer open');
   }
 
@@ -123,5 +168,6 @@ export async function cancelGoal(viewerId: string, goalId: string) {
     include: { poster: true },
   });
 
-  return toGoalDTO(updated, { viewerId });
+  const contextFor = await viewerContextFor(viewerId, [goalId]);
+  return toGoalDTO(updated, contextFor(goalId));
 }

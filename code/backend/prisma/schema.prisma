@@ -22,7 +22,7 @@ datasource db {
 // Models are introduced feature by feature, alongside the endpoints that use them:
 //   Step 1 — User, OtpToken   (below)
 //   Step 3 — Goal
-//   Step 4 — Request
+//   Step 4 — JoinRequest
 // (Later steps add Lobby, LobbyMember, Message, Rating, Report, Block, AuditLog.)
 
 /// A verified member of the campus. Every other entity hangs off this one.
@@ -74,6 +74,7 @@ model User {
   noShowCount      Int @default(0)
 
   postedGoals Goal[] @relation("PostedGoals")
+  joinRequests JoinRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -137,6 +138,8 @@ model Goal {
   /// goal's own date/time, or 48 hours for undated ones.
   expiresAt DateTime?
 
+  requests JoinRequest[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -146,4 +149,37 @@ model Goal {
   @@index([status, category])
   @@index([dateTime])
   @@index([posterId])
+}
+
+/// A student asking to join somebody else's goal. The state machine at the centre of Step 4.
+///
+/// Named JoinRequest rather than Request, as the class diagram has it: Prisma generates a type per
+/// model, and `Request` would collide with Express's `Request`, which every controller imports.
+model JoinRequest {
+  id String @id @default(cuid())
+
+  goalId String
+  goal   Goal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  requesterId String
+  requester   User   @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  /// One of REQUEST_STATUS. The legal moves between them are defined in
+  /// src/domain/joinRequest.ts and nowhere else.
+  status String @default("PENDING")
+
+  /// An optional note to the poster.
+  message String @default("")
+
+  /// When the poster accepted or declined, or the student withdrew. Null while pending.
+  decidedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One row per student per goal. Withdrawing and asking again reopens the same row, which is
+  /// also what stops a declined student from simply submitting a fresh request.
+  @@unique([goalId, requesterId])
+  @@index([goalId, status])
+  @@index([requesterId])
 }

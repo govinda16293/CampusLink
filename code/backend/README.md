@@ -21,7 +21,7 @@ Each is one folder under `src/modules/`: route · controller · service.
 | Auth                   | Built            |
 | Users and profiles     | Built            |
 | Goals                  | Built            |
-| Join requests          | Next — Step 4    |
+| Join requests          | Built            |
 | Lobbies                | Planned — Step 5 |
 | Chat                   | Planned — Step 6 |
 | Reports and blocks     | Planned — Step 8 |

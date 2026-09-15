@@ -1,4 +1,6 @@
 import type { Goal, User } from '@prisma/client';
+import { REQUEST_STATUS } from '@campuslink/shared';
+import { joinEligibility } from '../domain/joinRequest.js';
 import { toPublicUserDTO } from './user.serializer.js';
 
 /**
@@ -16,7 +18,7 @@ import { toPublicUserDTO } from './user.serializer.js';
  *   - Reliability stays visible while anonymous, so a requester can still judge whether the
  *     person is worth committing time to without knowing who they are.
  *   - Once a requester is accepted into the lobby, the poster's full profile becomes visible to
- *     that specific requester — `viewerCanSeePoster` carries that decision in from the service.
+ *     that specific requester — the viewer's own request, loaded by the service, decides it.
  *   - The poster always sees their own goal unmasked.
  *
  * Admin unmasking after a report is a separate, audit-logged path (Step 8). It deliberately does
@@ -26,18 +28,33 @@ export interface GoalViewerContext {
   /** The signed-in student's id. */
   viewerId: string;
   /**
-   * True when the viewer holds an accepted request on this goal. Supplied by the service, which
-   * loads it in one query for the whole page rather than per card. Always false in Step 3, since
-   * requests do not exist until Step 4.
+   * The viewer's gender, so the goal can say up front whether they may ask to join. Required
+   * rather than optional: defaulting it would quietly tell every student they are ineligible for
+   * every restricted goal.
    */
-  viewerIsAcceptedMember?: boolean;
+  viewerGender: string;
+  /**
+   * The viewer's own request on this goal, or null. Loaded by the service for a whole page in one
+   * query rather than per card. An accepted request is what lifts anonymity.
+   */
+  viewerRequest: { id: string; status: string } | null;
 }
 
 type GoalWithPoster = Goal & { poster: User };
 
 export function toGoalDTO(goal: GoalWithPoster, viewer: GoalViewerContext) {
   const isOwnGoal = goal.posterId === viewer.viewerId;
-  const identityRevealed = !goal.anonymous || isOwnGoal || viewer.viewerIsAcceptedMember === true;
+  const isAcceptedMember = viewer.viewerRequest?.status === REQUEST_STATUS.ACCEPTED;
+  const identityRevealed = !goal.anonymous || isOwnGoal || isAcceptedMember;
+
+  // The same function the API enforces a join request with, so the button the page shows and the
+  // answer the endpoint gives cannot disagree.
+  const eligibility = joinEligibility({
+    goal,
+    viewerId: viewer.viewerId,
+    viewerGender: viewer.viewerGender,
+    existingStatus: viewer.viewerRequest?.status ?? null,
+  });
 
   return {
     id: goal.id,
@@ -57,6 +74,12 @@ export function toGoalDTO(goal: GoalWithPoster, viewer: GoalViewerContext) {
 
     /** True when this goal belongs to the person asking, so the UI can offer poster controls. */
     isOwnGoal,
+
+    /** Where the viewer stands on this goal: their request, and whether they may make one. */
+    viewerRequest: viewer.viewerRequest,
+    viewerCanRequest: eligibility.canRequest,
+    viewerRequestBlockedReason: eligibility.reason,
+    viewerRequestBlockedMessage: eligibility.message,
 
     poster: identityRevealed
       ? { isAnonymous: false, ...toPublicUserDTO(goal.poster) }

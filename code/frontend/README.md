@@ -26,13 +26,13 @@ least 4.5:1. Reduced-transparency and reduced-motion settings are honoured.
 
 ## Views
 
-| View                    | Route                        | Status                              |
-| ----------------------- | ---------------------------- | ----------------------------------- |
-| Signup / login / verify | `/signup` `/login` `/verify` | Built                               |
-| Goal feed               | `/`                          | Built — filterable, cursor-paged    |
-| Create goal             | `/goals/new`                 | Built                               |
-| Goal detail             | `/goals/:id`                 | Built; request management is Step 4 |
-| Profile                 | `/profile` `/profile/:id`    | Built                               |
-| Lobby chat              | —                            | Planned (Step 6)                    |
-| Resource-request chat   | —                            | Planned (Step 7)                    |
-| Reliability history     | —                            | Planned (Step 9)                    |
+| View                    | Route                        | Status                                     |
+| ----------------------- | ---------------------------- | ------------------------------------------ |
+| Signup / login / verify | `/signup` `/login` `/verify` | Built                                      |
+| Goal feed               | `/`                          | Built — filterable, cursor-paged           |
+| Create goal             | `/goals/new`                 | Built                                      |
+| Goal detail             | `/goals/:id`                 | Built — request, accept, decline, withdraw |
+| Profile                 | `/profile` `/profile/:id`    | Built                                      |
+| Lobby chat              | —                            | Planned (Step 6)                           |
+| Resource-request chat   | —                            | Planned (Step 7)                           |
+| Reliability history     | —                            | Planned (Step 9)                           |

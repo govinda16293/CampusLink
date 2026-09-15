@@ -144,7 +144,7 @@ UI → test) and is left runnable and demoable.
 - [x] **Step 1** — Auth: college-email signup, OTP verification, login, JWT
 - [x] **Step 2** — Profiles: branch, year, gender, interests, completeness score
 - [x] **Step 3** — Post a goal + public feed (with the anonymity serializer)
-- [ ] **Step 4** — Request to join + poster approval (the core state machine)
+- [x] **Step 4** — Request to join + poster approval (the core state machine)
 
 Steps 5–12 (lobbies, real-time chat, notes sharing, trust & safety, ratings, matching,
 metrics, deployment) are planned but not yet in scope.
@@ -154,6 +154,14 @@ metrics, deployment) are planned but not yet in scope.
 **The state machine is pure.** Goal, request and lobby transitions live in
 `code/backend/src/domain/` as functions with no database or HTTP dependency, so they can be
 unit-tested exhaustively against illegal transitions, not just the happy path.
+
+**Two people cannot take the last spot.** Accepting a request claims a spot with a
+compare-and-set: the update to `acceptedCount` only lands if the count is still the one that was
+read. It is built from single statements rather than an interactive transaction, so it is correct
+on PostgreSQL's default isolation and not merely on SQLite, which happens to serialise writes. The
+guard is tested by reproducing the stale read directly, because two simultaneous HTTP requests
+against SQLite run one after the other — a test built that way was shown, by deleting the guard,
+to pass without it.
 
 **Anonymity is enforced server-side, in one place.** The serializer layer decides whether a
 poster's identity is included in a response, based on whether the viewer has an accepted request
