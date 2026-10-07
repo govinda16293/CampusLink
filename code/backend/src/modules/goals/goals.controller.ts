@@ -24,3 +24,23 @@ export async function cancel(req: Request, res: Response) {
   if (!req.auth) throw AppError.unauthorized();
   res.json({ goal: await goalsService.cancelGoal(req.auth.userId, String(req.params.id)) });
 }
+
+export async function close(req: Request, res: Response) {
+  if (!req.auth) throw AppError.unauthorized();
+  res.json({ goal: await goalsService.closeGoal(req.auth.userId, String(req.params.id)) });
+}
+
+export async function complete(req: Request, res: Response) {
+  if (!req.auth) throw AppError.unauthorized();
+  res.json({ goal: await goalsService.completeGoal(req.auth.userId, String(req.params.id)) });
+}
+
+export async function reopen(req: Request, res: Response) {
+  if (!req.auth) throw AppError.unauthorized();
+  res.json({ goal: await goalsService.reopenGoal(req.auth.userId, String(req.params.id)) });
+}
+
+export async function lobby(req: Request, res: Response) {
+  if (!req.auth) throw AppError.unauthorized();
+  res.json(await goalsService.getLobby(req.auth.userId, String(req.params.id)));
+}

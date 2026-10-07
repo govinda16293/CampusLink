@@ -276,9 +276,22 @@ export async function decideRequest(
 }
 
 export async function withdrawRequest(viewerId: string, requestId: string) {
-  const request = await prisma.joinRequest.findUnique({ where: { id: requestId } });
+  const request = await prisma.joinRequest.findUnique({
+    where: { id: requestId },
+    include: { goal: true },
+  });
   if (!request || request.requesterId !== viewerId) {
     throw AppError.notFound('That request does not exist');
+  }
+
+  // You can pull out of something that has not happened yet; you cannot un-attend one that has.
+  // Without this, leaving a completed goal would decrement its member count after the completion
+  // had already been counted for everyone — rewriting a record of who actually turned up.
+  if (
+    request.goal.status === GOAL_STATUS.COMPLETED ||
+    request.goal.status === GOAL_STATUS.ARCHIVED
+  ) {
+    throw new AppError(409, 'NOT_OPEN', 'This goal has already finished.');
   }
 
   await moveRequest(request.id, request.status, 'withdraw');

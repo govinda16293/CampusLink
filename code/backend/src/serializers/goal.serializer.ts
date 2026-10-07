@@ -1,5 +1,6 @@
 import type { Goal, User } from '@prisma/client';
 import { REQUEST_STATUS } from '@campuslink/shared';
+import { canViewLobby, lobbyStatusOf } from '../domain/goal.js';
 import { joinEligibility } from '../domain/joinRequest.js';
 import { toPublicUserDTO } from './user.serializer.js';
 
@@ -38,6 +39,11 @@ export interface GoalViewerContext {
    * query rather than per card. An accepted request is what lifts anonymity.
    */
   viewerRequest: { id: string; status: string } | null;
+  /**
+   * How many people are waiting on this poster's decision. Only ever set for the poster's own
+   * goals — see `pendingRequestCount` below for why it is not simply computed for everyone.
+   */
+  pendingRequestCount?: number;
 }
 
 type GoalWithPoster = Goal & { poster: User };
@@ -69,6 +75,8 @@ export function toGoalDTO(goal: GoalWithPoster, viewer: GoalViewerContext) {
     autoAccept: goal.autoAccept,
     anonymous: goal.anonymous,
     status: goal.status,
+    /** The same lifecycle the class diagram calls the Lobby, derived rather than stored. */
+    lobbyStatus: lobbyStatusOf(goal.status),
     expiresAt: goal.expiresAt?.toISOString() ?? null,
     createdAt: goal.createdAt.toISOString(),
 
@@ -80,6 +88,21 @@ export function toGoalDTO(goal: GoalWithPoster, viewer: GoalViewerContext) {
     viewerCanRequest: eligibility.canRequest,
     viewerRequestBlockedReason: eligibility.reason,
     viewerRequestBlockedMessage: eligibility.message,
+
+    /** Whether this viewer is in the group, and so may fetch the roster at GET /goals/:id/lobby. */
+    viewerIsMember: canViewLobby({
+      posterId: goal.posterId,
+      viewerId: viewer.viewerId,
+      viewerRequestStatus: viewer.viewerRequest?.status ?? null,
+    }),
+
+    /**
+     * How many requests are waiting, so a poster's own card can carry a badge instead of them
+     * having to open every goal to find out. Null for everyone else, and deliberately not just
+     * omitted: null says "not your goal", whereas a missing field is indistinguishable from a
+     * serializer that forgot to set it.
+     */
+    pendingRequestCount: isOwnGoal ? (viewer.pendingRequestCount ?? 0) : null,
 
     poster: identityRevealed
       ? { isAnonymous: false, ...toPublicUserDTO(goal.poster) }

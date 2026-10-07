@@ -23,7 +23,9 @@ datasource db {
 //   Step 1 — User, OtpToken   (below)
 //   Step 3 — Goal
 //   Step 4 — JoinRequest
-// (Later steps add Lobby, LobbyMember, Message, Rating, Report, Block, AuditLog.)
+//   Step 5 — no new models: the lobby of the class diagram is a Goal plus its accepted
+//            JoinRequests, so its lifecycle lives in Goal.status. See src/domain/goal.ts.
+// (Later steps add Message, Rating, Report, Block, AuditLog.)
 
 /// A verified member of the campus. Every other entity hangs off this one.
 model User {

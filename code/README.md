@@ -145,15 +145,23 @@ UI → test) and is left runnable and demoable.
 - [x] **Step 2** — Profiles: branch, year, gender, interests, completeness score
 - [x] **Step 3** — Post a goal + public feed (with the anonymity serializer)
 - [x] **Step 4** — Request to join + poster approval (the core state machine)
+- [x] **Step 5** — Lobbies: the member roster, a "Joined" list, and the goal lifecycle
 
-Steps 5–12 (lobbies, real-time chat, notes sharing, trust & safety, ratings, matching,
-metrics, deployment) are planned but not yet in scope.
+Steps 6–12 (real-time chat, notes sharing, trust & safety, ratings, matching, metrics,
+deployment) are planned but not yet in scope.
 
 ## Design notes worth knowing
 
 **The state machine is pure.** Goal, request and lobby transitions live in
 `code/backend/src/domain/` as functions with no database or HTTP dependency, so they can be
 unit-tested exhaustively against illegal transitions, not just the happy path.
+
+**There is no Lobby table.** The class diagram names Lobby as an entity, but a lobby has no state
+of its own — it is one goal plus the people whose requests were accepted. A second table would
+mean two rows that must agree about whether the group is still forming, and no way to say which
+is right the day they disagree. So the goal _is_ the lobby, and `lobbyStatusOf` in
+`domain/goal.ts` maps one onto the other: OPEN/FULL → FORMING, CLOSED → CONFIRMED, COMPLETED →
+COMPLETED, CANCELLED/ARCHIVED → CANCELLED.
 
 **Two people cannot take the last spot.** Accepting a request claims a spot with a
 compare-and-set: the update to `acceptedCount` only lands if the count is still the one that was

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { REQUEST_MESSAGE_MAX } from '@campuslink/shared';
 import { goalsApi } from '../api/goals';
 import { requestsApi } from '../api/requests';
 import { JoinRequestRow } from '../components/JoinRequestRow';
+import { LobbyRoster } from '../components/LobbyRoster';
 import { Avatar } from '../components/ui/Avatar';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
@@ -17,10 +18,21 @@ import {
   PeopleIcon,
   ShieldIcon,
 } from '../components/ui/icons';
-import { formatGoalWhen, formatPostedAt } from '../lib/formatGoal';
+import { useAuthStore } from '../store/authStore';
+import { formatGoalWhen, formatPostedAt, LOBBY_STATE_LABEL } from '../lib/formatGoal';
 
 /** Requests still worth showing the poster: ones to decide on, and the people already going. */
 const stillRelevant = (request) => request.status === 'PENDING' || request.status === 'ACCEPTED';
+
+/** What the poster can do to a goal in each state, and how it is worded. */
+const LIFECYCLE_ACTIONS = {
+  OPEN: [{ action: 'close', label: 'Confirm the group', variant: 'primary' }],
+  FULL: [{ action: 'close', label: 'Confirm the group', variant: 'primary' }],
+  CLOSED: [
+    { action: 'complete', label: 'Mark as done', variant: 'primary' },
+    { action: 'reopen', label: 'Reopen for more people', variant: 'secondary' },
+  ],
+};
 
 export function GoalDetailPage() {
   const { id } = useParams();
@@ -37,7 +49,13 @@ export function GoalDetailPage() {
   const [requests, setRequests] = useState({ status: 'idle', items: [], error: null });
   const [deciding, setDeciding] = useState({});
 
+  // The group itself: who is going. Shown to the poster and to accepted members alike.
+  const [lobby, setLobby] = useState(null);
+  const [lifecycleBusy, setLifecycleBusy] = useState(null);
+
+  const viewerId = useAuthStore((store) => store.user?.id);
   const isOwnGoal = state.goal?.isOwnGoal === true;
+  const isMember = state.goal?.viewerIsMember === true;
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +86,20 @@ export function GoalDetailPage() {
       cancelled = true;
     };
   }, [id, isOwnGoal]);
+
+  // The roster is refused with a 404 to anyone outside the group, so it is only ever asked for
+  // once the goal itself has said this viewer is in it.
+  const loadLobby = useCallback(() => {
+    if (!isMember) return;
+    goalsApi
+      .lobby(id)
+      .then(({ lobby: next }) => setLobby(next))
+      // A roster that will not load is not worth an error banner over the whole page: the goal
+      // is still readable, and the next action refetches it.
+      .catch(() => setLobby(null));
+  }, [id, isMember]);
+
+  useEffect(loadLobby, [loadLobby]);
 
   // Every action answers with the goal as the server now sees it. Adopting that, rather than
   // adjusting spots or status here, is what keeps this page from drifting from the truth.
@@ -118,12 +150,35 @@ export function GoalDetailPage() {
     }
   }
 
+  async function handleLifecycle(action) {
+    setLifecycleBusy(action);
+    setActionError(null);
+    try {
+      const { goal } = await goalsApi[action](id);
+      adoptGoal(goal);
+      loadLobby();
+      // Confirming the group declines everyone still waiting, so the decision list is stale.
+      if (action === 'close') {
+        setRequests((current) => ({
+          ...current,
+          items: current.items.filter((item) => item.status !== 'PENDING'),
+        }));
+      }
+    } catch (error) {
+      setActionError(error);
+    } finally {
+      setLifecycleBusy(null);
+    }
+  }
+
   async function handleDecision(requestId, action) {
     setDeciding((current) => ({ ...current, [requestId]: action }));
     setActionError(null);
     try {
       const { request, goal } = await requestsApi[action](requestId);
       adoptGoal(goal);
+      // Accepting somebody changes who is in the lobby, and the roster comes from the server.
+      if (action === 'accept') loadLobby();
       setRequests((current) => ({
         ...current,
         items: current.items
@@ -152,7 +207,10 @@ export function GoalDetailPage() {
   const { poster, viewerRequest } = goal;
   const full = goal.spotsLeft === 0;
   const pending = requests.items.filter((request) => request.status === 'PENDING');
-  const going = requests.items.filter((request) => request.status === 'ACCEPTED');
+  const lifecycle = LIFECYCLE_ACTIONS[goal.status] ?? [];
+  const over = goal.status === 'COMPLETED' || goal.status === 'CANCELLED';
+  // Once the group is confirmed nothing more can arrive, so there is nothing left to decide.
+  const takingRequests = goal.status === 'OPEN' || goal.status === 'FULL';
 
   // The three facts that decide whether to join, as tiles in the manner of Control Center.
   const facts = [
@@ -161,7 +219,9 @@ export function GoalDetailPage() {
       icon: PeopleIcon,
       label: 'Spots',
       value: `${goal.acceptedCount} of ${goal.headcount} joined`,
-      emphasis: !full,
+      // Highlighted only while there is genuinely room. On a confirmed or finished goal the same
+      // number in the link colour reads as an invitation to join something that is shut.
+      emphasis: goal.status === 'OPEN' && !full,
     },
     {
       icon: ShieldIcon,
@@ -187,7 +247,16 @@ export function GoalDetailPage() {
 
       <section className="glass rounded-4xl p-6 sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CategoryBadge category={goal.category} />
+          <div className="flex flex-wrap items-center gap-2">
+            <CategoryBadge category={goal.category} />
+            {/* Only once it has left the feed. "Still forming" on an open goal says nothing a
+                reader cannot already see from the spots below. */}
+            {goal.status !== 'OPEN' && goal.status !== 'FULL' && (
+              <span className="glass-control rounded-full px-3 py-1 text-[11px] font-semibold text-label">
+                {LOBBY_STATE_LABEL[goal.lobbyStatus]}
+              </span>
+            )}
+          </div>
           <span className="text-xs font-medium text-label-secondary">
             Posted {formatPostedAt(goal.createdAt)}
           </span>
@@ -263,7 +332,7 @@ export function GoalDetailPage() {
         </div>
       </section>
 
-      {isOwnGoal ? (
+      {isOwnGoal && takingRequests && (
         <>
           <section className="glass rounded-4xl p-6 sm:p-8">
             <div className="flex items-baseline justify-between gap-3">
@@ -314,36 +383,86 @@ export function GoalDetailPage() {
               </>
             )}
           </section>
-
-          <section className="glass rounded-4xl p-6 sm:p-8">
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-[17px] font-semibold text-label">Going</h2>
-              <span className="text-[13px] font-medium tabular-nums text-label-secondary">
-                {goal.acceptedCount} of {goal.headcount}
-              </span>
-            </div>
-            {requests.status === 'ready' &&
-              (going.length === 0 ? (
-                <p className="mt-3 text-[15px] text-label-secondary">
-                  Nobody has been accepted yet.
-                </p>
-              ) : (
-                <ul className="mt-4 space-y-3">
-                  {going.map((request) => (
-                    <JoinRequestRow key={request.id} request={request} />
-                  ))}
-                </ul>
-              ))}
-            <Button
-              variant="secondary"
-              loading={cancelling}
-              onClick={handleCancel}
-              className="mt-6"
-            >
-              Cancel this goal
-            </Button>
-          </section>
         </>
+      )}
+
+      {/* The roster, shown to the poster and to accepted members alike — one section, one source,
+          so the two never describe the same group differently. */}
+      {isMember && (
+        <section className="glass rounded-4xl p-6 sm:p-8">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-[17px] font-semibold text-label">Who is going</h2>
+            {/* A count, not a fraction. The Spots tile above already says "1 of 3 joined", and
+                that denominator counts joiners while this one would have to count the poster
+                too — two different "of" on one page reads as a mistake even when both are right. */}
+            <span className="text-[13px] font-medium tabular-nums text-label-secondary">
+              {goal.acceptedCount + 1} going
+            </span>
+          </div>
+
+          {lobby ? (
+            <LobbyRoster lobby={lobby} viewerId={viewerId} />
+          ) : (
+            <p className="mt-3 text-[15px] text-label-secondary">Loading the group…</p>
+          )}
+
+          <p className="mt-4 text-[13px] text-label-secondary">
+            {goal.lobbyStatus === 'FORMING'
+              ? 'Still open — anyone else who joins appears here.'
+              : goal.lobbyStatus === 'CONFIRMED'
+                ? 'The group is set. Nobody else can join.'
+                : goal.lobbyStatus === 'COMPLETED'
+                  ? 'This one is done.'
+                  : 'This goal was called off.'}
+          </p>
+        </section>
+      )}
+
+      {isOwnGoal ? (
+        <section className="glass rounded-4xl p-6 sm:p-8">
+          <h2 className="text-[17px] font-semibold text-label">Manage this goal</h2>
+
+          <Alert tone="error" className="mt-4">
+            {actionError?.message}
+          </Alert>
+
+          {over ? (
+            <p className="mt-2 text-[15px] text-label-secondary">
+              {goal.status === 'COMPLETED'
+                ? 'You marked this done. It counts towards everyone who turned up.'
+                : 'You called this off.'}
+            </p>
+          ) : (
+            <>
+              <p className="mt-2 text-[15px] text-label-secondary">
+                {goal.status === 'CLOSED'
+                  ? 'The group is confirmed. Mark it done once it has happened.'
+                  : goal.acceptedCount === 0
+                    ? 'Confirming locks the group in. Accept at least one person first.'
+                    : 'Confirming locks the group in and declines anyone still waiting.'}
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                {lifecycle.map(({ action, label, variant }) => (
+                  <Button
+                    key={action}
+                    variant={variant}
+                    loading={lifecycleBusy === action}
+                    disabled={
+                      Boolean(lifecycleBusy) || (action === 'close' && goal.acceptedCount === 0)
+                    }
+                    onClick={() => handleLifecycle(action)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+                <Button variant="secondary" loading={cancelling} onClick={handleCancel}>
+                  Cancel this goal
+                </Button>
+              </div>
+            </>
+          )}
+        </section>
       ) : (
         <section className="glass rounded-4xl p-6 sm:p-8">
           <Alert tone="error" className="mb-4">
@@ -352,19 +471,31 @@ export function GoalDetailPage() {
 
           {viewerRequest?.status === 'ACCEPTED' ? (
             <>
-              <StatusLine icon={CheckCircleIcon} tone="positive" title="You're in">
-                The poster accepted you
-                {goal.anonymous ? ', so their name is now shown above' : ''}. Group chat for sorting
-                out the details is on its way.
-              </StatusLine>
-              <Button
-                variant="secondary"
-                loading={joinBusy}
-                onClick={handleWithdraw}
-                className="mt-5"
+              <StatusLine
+                icon={CheckCircleIcon}
+                tone="positive"
+                title={over ? 'You were in this' : 'You\u2019re in'}
               >
-                Leave this goal
-              </Button>
+                {over
+                  ? goal.status === 'COMPLETED'
+                    ? 'The poster marked this done, and it counts towards your profile.'
+                    : 'The poster called this off.'
+                  : `The poster accepted you${
+                      goal.anonymous ? ', so their name is now shown above' : ''
+                    }, and you can see who else is going above. Group chat for sorting out the details is on its way.`}
+              </StatusLine>
+              {/* No way out of something that has already happened — the API refuses it too, and
+                  a button that can only fail is worse than no button. */}
+              {!over && (
+                <Button
+                  variant="secondary"
+                  loading={joinBusy}
+                  onClick={handleWithdraw}
+                  className="mt-5"
+                >
+                  Leave this goal
+                </Button>
+              )}
             </>
           ) : viewerRequest?.status === 'PENDING' ? (
             <>

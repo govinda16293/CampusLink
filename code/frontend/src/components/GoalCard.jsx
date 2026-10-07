@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Avatar } from './ui/Avatar';
 import { CategoryBadge } from './ui/CategoryBadge';
-import { CalendarIcon, PeopleIcon, ShieldIcon } from './ui/icons';
-import { formatGoalWhen, formatPostedAt } from '../lib/formatGoal';
+import { CalendarIcon, CheckCircleIcon, PeopleIcon, ShieldIcon } from './ui/icons';
+import { formatGoalWhen, formatPostedAt, spotsLabel } from '../lib/formatGoal';
 
 /**
  * One goal on the feed.
@@ -13,7 +13,12 @@ import { formatGoalWhen, formatPostedAt } from '../lib/formatGoal';
  */
 export function GoalCard({ goal }) {
   const { poster } = goal;
+  const open = goal.status === 'OPEN' || goal.status === 'FULL';
   const full = goal.spotsLeft === 0;
+  // Shown on your own cards so a poster can see at a glance which goals need an answer, rather
+  // than opening each one to find out. The API only ever sets it for goals you posted.
+  const waiting = goal.pendingRequestCount ?? 0;
+  const joined = !goal.isOwnGoal && goal.viewerRequest?.status === 'ACCEPTED';
 
   return (
     <Link
@@ -21,7 +26,14 @@ export function GoalCard({ goal }) {
       className="glass glass-interactive block rounded-[1.75rem] p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:p-6"
     >
       <div className="flex items-start justify-between gap-3">
-        <CategoryBadge category={goal.category} />
+        <div className="flex flex-wrap items-center gap-2">
+          <CategoryBadge category={goal.category} />
+          {waiting > 0 && (
+            <span className="inline-flex items-center rounded-full bg-action px-2.5 py-1 text-[11px] font-semibold text-white">
+              {waiting} waiting
+            </span>
+          )}
+        </div>
         <span className="shrink-0 text-xs font-medium text-label-secondary">
           {formatPostedAt(goal.createdAt)}
         </span>
@@ -40,11 +52,17 @@ export function GoalCard({ goal }) {
           {formatGoalWhen(goal.dateTime)}
         </span>
         <span
-          className={`inline-flex items-center gap-1.5 ${full ? 'text-label-secondary' : 'text-link'}`}
+          className={`inline-flex items-center gap-1.5 ${open && !full ? 'text-link' : 'text-label-secondary'}`}
         >
           <PeopleIcon className="size-4" />
-          {full ? 'Full' : `${goal.spotsLeft} spot${goal.spotsLeft === 1 ? '' : 's'} left`}
+          {spotsLabel(goal)}
         </span>
+        {joined && (
+          <span className="inline-flex items-center gap-1.5 text-positive-text">
+            <CheckCircleIcon className="size-4" />
+            You&rsquo;re in
+          </span>
+        )}
         {goal.genderPreference !== 'ANY' && (
           <span className="text-label-secondary">
             {goal.genderPreference === 'FEMALE_ONLY' ? 'Women only' : 'Men only'}

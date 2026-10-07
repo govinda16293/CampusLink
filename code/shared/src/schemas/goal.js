@@ -73,7 +73,16 @@ export const feedQuerySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date')
     .optional(),
+  /** Only goals this student posted. Keeps the ones that have filled, unlike the public feed. */
   mine: z.enum(['true', 'false']).optional(),
+  /**
+   * Only goals this student was accepted onto — the "Joined" tab.
+   *
+   * Unlike the public feed this one does not drop a goal the moment its time passes: it is the
+   * student's list of commitments, and something that happened an hour ago is precisely what they
+   * may still need to open, to see who was there or to mark it done.
+   */
+  joined: z.enum(['true', 'false']).optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional().default(20),
 });

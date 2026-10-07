@@ -34,4 +34,34 @@ export function formatPostedAt(createdAt) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+/**
+ * What to say about a goal's remaining spots, which depends on where it is in its life.
+ *
+ * "1 spot left" is only true while a goal is still taking people. Once the poster has confirmed
+ * the group or marked it done, the same sentence would be an invitation to join something that
+ * is no longer open, so each later state gets its own phrasing.
+ */
+export function spotsLabel(goal) {
+  switch (goal.status) {
+    case 'COMPLETED':
+      return 'Done';
+    case 'CANCELLED':
+      return 'Cancelled';
+    case 'CLOSED':
+      return `${goal.acceptedCount} going`;
+    default:
+      return goal.spotsLeft === 0
+        ? 'Full'
+        : `${goal.spotsLeft} spot${goal.spotsLeft === 1 ? '' : 's'} left`;
+  }
+}
+
+/** The lobby's state in words, for the heading above the roster. */
+export const LOBBY_STATE_LABEL = {
+  FORMING: 'Still forming',
+  CONFIRMED: 'Confirmed',
+  COMPLETED: 'Done',
+  CANCELLED: 'Called off',
+};
+
 export { UNDATED_GOAL_TTL_HOURS };
