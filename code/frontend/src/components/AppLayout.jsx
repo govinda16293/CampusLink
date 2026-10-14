@@ -1,7 +1,8 @@
 import { Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Brand } from './ui/Brand';
-import { Button } from './ui/Button';
+import { Button, ButtonLink } from './ui/Button';
+import { ShieldIcon } from './ui/icons';
 import { TabBar } from './TabBar';
 
 /**
@@ -15,6 +16,7 @@ import { TabBar } from './TabBar';
  */
 export function AppLayout() {
   const logout = useAuthStore((state) => state.logout);
+  const isAdmin = useAuthStore((state) => state.user?.role) === 'ADMIN';
 
   return (
     <div className="relative min-h-full">
@@ -27,9 +29,19 @@ export function AppLayout() {
           {/* Same width and side padding as <main>, so the brand lines up with the content. */}
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 sm:px-8">
             <Brand />
-            <Button variant="secondary" size="sm" onClick={logout}>
-              Sign out
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Moderators only, and only a shortcut — the API refuses everyone else whether or
+                  not this link is on screen. Students never see that the area exists. */}
+              {isAdmin && (
+                <ButtonLink to="/admin" variant="secondary" size="sm">
+                  <ShieldIcon className="size-4" />
+                  Moderation
+                </ButtonLink>
+              )}
+              <Button variant="secondary" size="sm" onClick={logout}>
+                Sign out
+              </Button>
+            </div>
           </div>
         </header>
 

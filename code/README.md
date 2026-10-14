@@ -148,15 +148,42 @@ UI → test) and is left runnable and demoable.
 - [x] **Step 5** — Lobbies: the member roster, a "Joined" list, and the goal lifecycle
 - [x] **Step 6** — Real-time group chat for a lobby (Socket.IO)
 - [x] **Step 9** — Ratings: who turned up, and the reliability score built from it
+- [x] **Step 8** — Trust & safety: report, block, and audit-logged admin unmasking
 
-Step 8 (report, block and admin unmasking) is next, then a UI pass and deployment. Steps 7, 10
-and 11 — notes sharing, matching and metrics — are deferred by the team rather than dropped.
+Next is a UI pass, then deployment. Steps 7, 10 and 11 — notes sharing, matching and metrics —
+are deferred by the team rather than dropped.
+
+### Making somebody a moderator
+
+There is no UI for it, deliberately — an endpoint that grants admin is an endpoint worth
+attacking. Set the role directly against the database:
+
+```bash
+sqlite3 backend/prisma/dev.db "update User set role='ADMIN' where email='you_be24@thapar.edu';"
+```
+
+A "Moderation" link then appears in the header. `requireAdmin` reads the role from the database
+on every request rather than from the session token, so granting and revoking both take effect
+immediately.
 
 ## Design notes worth knowing
 
 **The state machine is pure.** Goal, request and lobby transitions live in
 `code/backend/src/domain/` as functions with no database or HTTP dependency, so they can be
 unit-tested exhaustively against illegal transitions, not just the happy path.
+
+**Anonymity is breakable, but never quietly.** A moderator's report queue does not show who is
+behind an anonymous goal — moderation does not need the name, so doing the job never hands one
+over as a side effect. Revealing it is a separate, deliberate press, and that press is what writes
+an `AuditLog` row naming the moderator. The row is written _before_ the identity is returned, so a
+failed write means no name: a log that can be skipped is not a log. Nothing in the codebase
+updates or deletes an audit row, and no endpoint exposes one that could.
+
+**Blocking is stored one way and enforced both ways.** Read only in the direction it was made, a
+block would leave the blocked student still seeing the blocker's goals and still able to ask to
+join them — the opposite of what it is for. It does not dissolve a lobby the two are already in:
+quietly removing somebody from a group they committed to, and a chat others are relying on, is a
+bigger act than the student asked for.
 
 **Reliability is a majority verdict, not one person's word.** After a goal is marked done, each
 member answers one question about each of the others: did they turn up. A student counts as absent

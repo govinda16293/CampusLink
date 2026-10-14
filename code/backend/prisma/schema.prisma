@@ -26,8 +26,8 @@ datasource db {
 //   Step 5 — no new models: the lobby of the class diagram is a Goal plus its accepted
 //            JoinRequests, so its lifecycle lives in Goal.status. See src/domain/goal.ts.
 //   Step 6 — Message
+//   Step 8 — Report, Block, AuditLog
 //   Step 9 — Rating
-// (Later steps add Report, Block, AuditLog.)
 
 /// A verified member of the campus. Every other entity hangs off this one.
 model User {
@@ -92,6 +92,15 @@ model User {
   /// Answers this student gave about other people, and answers other people gave about them.
   ratingsGiven    Rating[]      @relation("RatingsGiven")
   ratingsReceived Rating[]      @relation("RatingsReceived")
+
+  /// Trust and safety (Step 8). Reports this student filed, reports about them, reports they
+  /// reviewed as an admin, blocks in both directions, and the audit trail of their admin acts.
+  reportsFiled    Report[]   @relation("ReportsFiled")
+  reportsAgainst  Report[]   @relation("ReportsAgainst")
+  reportsReviewed Report[]   @relation("ReportsReviewed")
+  blocksMade      Block[]    @relation("BlocksMade")
+  blocksReceived  Block[]    @relation("BlocksReceived")
+  auditEntries    AuditLog[] @relation("AuditActor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -158,6 +167,7 @@ model Goal {
   requests JoinRequest[]
   messages Message[]
   ratings  Rating[]
+  reports  Report[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -262,4 +272,99 @@ model Rating {
   @@unique([goalId, raterId, subjectId])
   @@index([subjectId])
   @@index([goalId])
+}
+
+/// A student telling the admins that somebody is a problem.
+///
+/// The report names a **user**, not a post, even when it was filed from a goal or a message. That
+/// is the question an admin actually has to answer — is this person a problem — and it is the only
+/// framing that works for an anonymous goal, where the reporter cannot know who they are reporting.
+/// The server resolves the subject from the goal; the reporter never learns the name.
+///
+/// `goalId` and `messageId` are context, kept so an admin can see what prompted it. Both are
+/// optional and both survive the thing they point at being removed, which is why neither is a
+/// foreign key with a cascade — a report whose evidence vanished is still a report.
+model Report {
+  id String @id @default(cuid())
+
+  reporterId String
+  reporter   User   @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  /// The student being reported. Resolved server-side, never sent by the client.
+  subjectId String
+  subject   User   @relation("ReportsAgainst", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  /// What prompted it. Null when somebody is reported from their profile.
+  goalId    String?
+  goal      Goal?   @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  /// Deliberately not a relation: a message deleted in moderation must not take the report with it.
+  messageId String?
+
+  /// One of REPORT_REASON.
+  reason String
+  detail String @default("")
+
+  /// One of REPORT_STATUS.
+  status       String    @default("OPEN")
+  reviewedAt   DateTime?
+  reviewedById String?
+  reviewedBy   User?     @relation("ReportsReviewed", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One open report per reporter per subject: a student can report somebody again after it has
+  /// been dealt with, but cannot file the same complaint fifty times to bury the queue.
+  @@index([subjectId])
+  @@index([status, createdAt])
+  @@index([reporterId])
+}
+
+/// One student choosing not to see another.
+///
+/// Stored one-way — who blocked whom — but enforced both ways. If it were read one-way, the person
+/// who was blocked could still see the blocker's goals and ask to join them, which is the opposite
+/// of what blocking is for. See `blockedUserIds` in src/modules/safety/blocks.service.ts.
+model Block {
+  id String @id @default(cuid())
+
+  blockerId String
+  blocker   User   @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+
+  blockedId String
+  blocked   User   @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+/// A permanent record of an admin doing something only an admin can do.
+///
+/// Append-only: there is no update and no delete anywhere in the codebase, and no endpoint that
+/// could reach one. That is the entire point. Anonymous posting is a promise made to students,
+/// and the only thing that keeps such a promise honest is that breaking it leaves a mark the
+/// person who broke it cannot rub out.
+model AuditLog {
+  id String @id @default(cuid())
+
+  actorId String
+  actor   User   @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  /// One of AUDIT_ACTION.
+  action String
+
+  /// What was acted on — "Goal", "Report", "User" — and its id.
+  targetType String
+  targetId   String
+
+  /// Human-readable context, written at the time. Never recomputed, because the point of a log is
+  /// what was true then, not what is true now.
+  detail String @default("")
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
 }

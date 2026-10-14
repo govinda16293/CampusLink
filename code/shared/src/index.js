@@ -13,3 +13,4 @@ export * from './schemas/goal.js';
 export * from './schemas/joinRequest.js';
 export * from './schemas/message.js';
 export * from './schemas/rating.js';
+export * from './schemas/safety.js';

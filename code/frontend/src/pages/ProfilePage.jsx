@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { BRANCH_LABEL, reliabilityLabel } from '@campuslink/shared';
 import { usersApi } from '../api/users';
+import { safetyApi } from '../api/safety';
+import { Button } from '../components/ui/Button';
+import { ReportDialog } from '../components/ReportDialog';
 import { useAuthStore } from '../store/authStore';
 import { Avatar } from '../components/ui/Avatar';
 import { Alert } from '../components/ui/Alert';
@@ -165,6 +168,74 @@ export function ProfilePage() {
           </p>
         )}
       </section>
+
+      {!isOwnProfile && <SafetySection userId={user.id} name={user.name} />}
     </div>
+  );
+}
+
+/**
+ * Reporting and blocking another student.
+ *
+ * Kept to the foot of their profile and in low-emphasis glass, because these are the two actions
+ * on CampusLink that should be easy to find when wanted and impossible to hit by accident. The
+ * copy says plainly what each one does: a report goes to a moderator, a block is silent and
+ * mutual, and neither tells the other student anything.
+ */
+function SafetySection({ userId, name }) {
+  const [reporting, setReporting] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function toggleBlock() {
+    setBusy(true);
+    setError(null);
+    try {
+      if (blocked) await safetyApi.unblock(userId);
+      else await safetyApi.block(userId);
+      setBlocked(!blocked);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const firstName = name?.split(' ')[0] ?? 'this student';
+
+  return (
+    <section className="glass rounded-4xl p-6 sm:p-8">
+      <h2 className="text-[17px] font-semibold text-label">Safety</h2>
+      <p className="mt-1 text-[13px] text-label-secondary">
+        {blocked
+          ? `You and ${firstName} are hidden from each other. Neither of you will see the other’s goals.`
+          : `Blocking is silent — ${firstName} is not told, and you stop seeing each other’s goals.`}
+      </p>
+
+      <Alert tone="error" className="mt-4">
+        {error?.message}
+      </Alert>
+
+      {reporting ? (
+        <ReportDialog target={{ userId }} onClose={() => setReporting(false)} />
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button variant="secondary" loading={busy} onClick={toggleBlock}>
+            {blocked ? `Unblock ${firstName}` : `Block ${firstName}`}
+          </Button>
+          <Button variant="secondary" onClick={() => setReporting(true)}>
+            Report
+          </Button>
+        </div>
+      )}
+
+      {blocked && (
+        <p className="mt-4 text-[13px] text-label-secondary">
+          Blocking does not remove you from a group you have already joined together — leave that
+          yourself from the goal if you want out.
+        </p>
+      )}
+    </section>
   );
 }

@@ -11,6 +11,7 @@ import { CreateGoalPage } from './pages/CreateGoalPage';
 import { GoalDetailPage } from './pages/GoalDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { EditProfilePage } from './pages/EditProfilePage';
+import { AdminPage } from './pages/AdminPage';
 
 export default function App() {
   const initialise = useAuthStore((state) => state.initialise);
@@ -40,6 +41,9 @@ export default function App() {
           <Route path="/profile/edit" element={<EditProfilePage />} />
           {/* Declared after /profile/edit so "edit" is never captured as a user id. */}
           <Route path="/profile/:id" element={<ProfilePage />} />
+          {/* Guarded by the API, not by this route — requireAdmin reads the role from the
+              database on every call, so hiding the link is convenience, never the control. */}
+          <Route path="/admin" element={<AdminPage />} />
         </Route>
       </Route>
 

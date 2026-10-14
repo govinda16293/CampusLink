@@ -135,6 +135,53 @@ export const BRANCH_LABEL = {
 /** Years of study. Thapar's BE programmes run four years. */
 export const STUDY_YEARS = [1, 2, 3, 4];
 
+/** Why a student is reporting somebody. Chosen from a list so reports can be counted. */
+export const REPORT_REASON = {
+  HARASSMENT: 'HARASSMENT',
+  INAPPROPRIATE: 'INAPPROPRIATE',
+  SPAM: 'SPAM',
+  FAKE_PROFILE: 'FAKE_PROFILE',
+  NO_SHOW: 'NO_SHOW',
+  SAFETY: 'SAFETY',
+  OTHER: 'OTHER',
+};
+
+export const REPORT_REASON_LABEL = {
+  HARASSMENT: 'Harassment or abuse',
+  INAPPROPRIATE: 'Inappropriate content',
+  SPAM: 'Spam or advertising',
+  FAKE_PROFILE: 'Fake or impersonating profile',
+  NO_SHOW: 'Repeatedly does not turn up',
+  SAFETY: 'I felt unsafe',
+  OTHER: 'Something else',
+};
+
+/** Where a report has got to. Only an admin moves it along. */
+export const REPORT_STATUS = {
+  OPEN: 'OPEN',
+  REVIEWED: 'REVIEWED',
+  ACTIONED: 'ACTIONED',
+  DISMISSED: 'DISMISSED',
+};
+
+export const REPORT_STATUS_LABEL = {
+  OPEN: 'Open',
+  REVIEWED: 'Reviewed',
+  ACTIONED: 'Action taken',
+  DISMISSED: 'Dismissed',
+};
+
+/**
+ * Admin actions worth keeping a permanent record of.
+ *
+ * Unmasking is the one that matters: anonymous posting is a promise to students, and the only
+ * thing that keeps it honest is that breaking it leaves a trace nobody can quietly remove.
+ */
+export const AUDIT_ACTION = {
+  UNMASK_POSTER: 'UNMASK_POSTER',
+  REVIEW_REPORT: 'REVIEW_REPORT',
+};
+
 export const USER_ROLE = {
   STUDENT: 'STUDENT',
   ADMIN: 'ADMIN',
@@ -148,4 +195,7 @@ export const LOBBY_STATUSES = Object.values(LOBBY_STATUS);
 export const GENDERS = Object.values(GENDER);
 export const GENDER_PREFERENCES = Object.values(GENDER_PREFERENCE);
 export const USER_ROLES = Object.values(USER_ROLE);
+export const REPORT_REASONS = Object.values(REPORT_REASON);
+export const REPORT_STATUSES = Object.values(REPORT_STATUS);
+export const AUDIT_ACTIONS = Object.values(AUDIT_ACTION);
 export const BRANCHES = Object.values(BRANCH);

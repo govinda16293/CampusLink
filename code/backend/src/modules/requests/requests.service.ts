@@ -10,6 +10,7 @@ import {
   type RequestAction,
 } from '../../domain/joinRequest.js';
 import { evict } from '../../realtime/bus.js';
+import { isBlockedBetween } from '../safety/blocks.service.js';
 import { toGoalDTO } from '../../serializers/goal.serializer.js';
 import { toJoinRequestDTO } from '../../serializers/joinRequest.serializer.js';
 import { viewerContextFor } from '../goals/goals.service.js';
@@ -165,6 +166,12 @@ export async function requestToJoin(viewerId: string, goalId: string, input: Joi
   // The schema's promise: an account that has not confirmed its college email cannot join anything.
   if (!viewer.isVerified) {
     throw new AppError(403, 'NOT_VERIFIED', 'Verify your college email before joining a goal.');
+  }
+
+  // Checked before eligibility so a blocked student is never told anything about the goal — not
+  // how full it is, not who it is open to. The same opaque answer either direction.
+  if (await isBlockedBetween(viewerId, goal.posterId)) {
+    throw AppError.notFound('That goal does not exist or has been removed');
   }
 
   const eligibility = joinEligibility({

@@ -6,6 +6,7 @@ import { requestsApi } from '../api/requests';
 import { JoinRequestRow } from '../components/JoinRequestRow';
 import { LobbyChat } from '../components/LobbyChat';
 import { RatingPrompt } from '../components/RatingPrompt';
+import { ReportDialog } from '../components/ReportDialog';
 import { LobbyRoster } from '../components/LobbyRoster';
 import { Avatar } from '../components/ui/Avatar';
 import { Alert } from '../components/ui/Alert';
@@ -54,6 +55,7 @@ export function GoalDetailPage() {
   // The group itself: who is going. Shown to the poster and to accepted members alike.
   const [lobby, setLobby] = useState(null);
   const [lifecycleBusy, setLifecycleBusy] = useState(null);
+  const [reporting, setReporting] = useState(false);
 
   const viewerId = useAuthStore((store) => store.user?.id);
   const isOwnGoal = state.goal?.isOwnGoal === true;
@@ -572,6 +574,21 @@ export function GoalDetailPage() {
                 {full ? 'Full' : 'Request to join'}
               </Button>
             </>
+          )}
+        </section>
+      )}
+      {!isOwnGoal && (
+        <section className="glass rounded-4xl p-6 sm:p-8">
+          <h2 className="text-[17px] font-semibold text-label">Something wrong here?</h2>
+          <p className="mt-1 text-[13px] text-label-secondary">
+            Reports go to the moderators. The student is never told who reported them.
+          </p>
+          {reporting ? (
+            <ReportDialog target={{ goalId: goal.id }} onClose={() => setReporting(false)} />
+          ) : (
+            <Button variant="secondary" onClick={() => setReporting(true)} className="mt-4">
+              Report this goal
+            </Button>
           )}
         </section>
       )}

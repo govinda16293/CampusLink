@@ -13,6 +13,7 @@ import { canViewLobby, nextGoalStatus, type GoalAction } from '../../domain/goal
 import { toGoalDTO, type GoalViewerContext } from '../../serializers/goal.serializer.js';
 import { toLobbyDTO } from '../../serializers/lobby.serializer.js';
 import { recomputeLobbyReliability } from '../ratings/ratings.service.js';
+import { blockedUserIds } from '../safety/blocks.service.js';
 
 type CreateGoalInput = z.infer<typeof createGoalSchema>;
 type FeedQuery = z.infer<typeof feedQuerySchema>;
@@ -154,6 +155,19 @@ export async function listGoals(viewerId: string, query: FeedQuery) {
   const where: Record<string, unknown> = feedFilter(viewerId, query, now);
 
   if (query.category) where.category = query.category;
+
+  /*
+   * Blocked students disappear from the feed in both directions.
+   *
+   * Applied to discovery only. "Joined" and "My goals" are lists of commitments already made, and
+   * blocking somebody does not undo a group you are both in — hiding it would leave a student
+   * unable to reach a lobby and a chat that other people are still relying on them for. The UI
+   * tells them to leave if that is what they want.
+   */
+  if (query.mine !== 'true' && query.joined !== 'true') {
+    const hidden = await blockedUserIds(viewerId);
+    if (hidden.size > 0) where.posterId = { notIn: [...hidden] };
+  }
 
   if (query.from || query.to) {
     const range: Record<string, Date> = {};

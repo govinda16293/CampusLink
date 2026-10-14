@@ -10,6 +10,7 @@ import { healthRouter } from './modules/health/health.route.js';
 import { messagesRouter } from './modules/messages/messages.route.js';
 import { ratingsRouter } from './modules/ratings/ratings.route.js';
 import { requestsRouter } from './modules/requests/requests.route.js';
+import { safetyRouter } from './modules/safety/safety.route.js';
 import { usersRouter } from './modules/users/users.route.js';
 
 /**
@@ -43,6 +44,7 @@ export function createApp() {
   app.use('/api', requestsRouter);
   app.use('/api', messagesRouter);
   app.use('/api', ratingsRouter);
+  app.use('/api', safetyRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
