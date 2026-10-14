@@ -46,6 +46,10 @@ export function toPrivateUserDTO(user: User) {
     role: user.role,
     reliabilityScore: user.reliabilityScore,
     goalsCompleted: user.goalsCompleted,
+    // Shown as well as folded into the score. "Reliability 80" alone does not tell a poster
+    // whether that is one missed goal out of one or ten out of fifty, and deciding whether to
+    // accept somebody is exactly the moment that difference matters.
+    noShowCount: user.noShowCount,
     createdAt: user.createdAt.toISOString(),
     // Only on the private DTO: how finished someone's own profile is, is their business.
     profileCompleteness: profileCompleteness(profile),
@@ -70,6 +74,10 @@ export function toPublicUserDTO(user: User) {
     interests: splitInterests(user.interests),
     reliabilityScore: user.reliabilityScore,
     goalsCompleted: user.goalsCompleted,
+    // Shown as well as folded into the score. "Reliability 80" alone does not tell a poster
+    // whether that is one missed goal out of one or ten out of fifty, and deciding whether to
+    // accept somebody is exactly the moment that difference matters.
+    noShowCount: user.noShowCount,
     createdAt: user.createdAt.toISOString(),
   };
 }

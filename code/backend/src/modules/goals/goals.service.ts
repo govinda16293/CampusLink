@@ -12,6 +12,7 @@ import { AppError } from '../../lib/AppError.js';
 import { canViewLobby, nextGoalStatus, type GoalAction } from '../../domain/goal.js';
 import { toGoalDTO, type GoalViewerContext } from '../../serializers/goal.serializer.js';
 import { toLobbyDTO } from '../../serializers/lobby.serializer.js';
+import { recomputeLobbyReliability } from '../ratings/ratings.service.js';
 
 type CreateGoalInput = z.infer<typeof createGoalSchema>;
 type FeedQuery = z.infer<typeof feedQuerySchema>;
@@ -267,18 +268,13 @@ async function transitionGoal(viewerId: string, goalId: string, action: GoalActi
   }
 
   if (action === 'complete') {
-    // One goal completed each, for the poster and everyone who turned up. Safe to do outside the
-    // compare-and-set because COMPLETED is terminal and the CAS above let exactly one caller
-    // through, so this runs once per goal for all time. Step 9 turns these counts into the
-    // reliability score; until then they are simply an honest tally.
-    const members = await prisma.joinRequest.findMany({
-      where: { goalId, status: REQUEST_STATUS.ACCEPTED },
-      select: { requesterId: true },
-    });
-    await prisma.user.updateMany({
-      where: { id: { in: [goal.posterId, ...members.map((m) => m.requesterId)] } },
-      data: { goalsCompleted: { increment: 1 } },
-    });
+    // Recomputed from the ratings rather than incremented, which is what Step 9 replaced here.
+    // A verdict about one person can flip as the rest of the group answers, so a counter nudged
+    // up at completion and nudged again on each rating would drift out of agreement with the rows
+    // behind it. Deriving all three counters every time makes this idempotent — which also means
+    // the compare-and-set above is the only thing standing between a double completion and a
+    // double count, and it no longer has to be.
+    await recomputeLobbyReliability(goalId, goal.posterId);
   }
 
   const updated = await prisma.goal.findUniqueOrThrow({

@@ -111,6 +111,7 @@ export function toGoalDTO(goal: GoalWithPoster, viewer: GoalViewerContext) {
           isAnonymous: true,
           reliabilityScore: goal.poster.reliabilityScore,
           goalsCompleted: goal.poster.goalsCompleted,
+          noShowCount: goal.poster.noShowCount,
         },
   };
 }

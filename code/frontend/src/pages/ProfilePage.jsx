@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BRANCH_LABEL } from '@campuslink/shared';
+import { BRANCH_LABEL, reliabilityLabel } from '@campuslink/shared';
 import { usersApi } from '../api/users';
 import { useAuthStore } from '../store/authStore';
 import { Avatar } from '../components/ui/Avatar';
 import { Alert } from '../components/ui/Alert';
 import { ButtonLink } from '../components/ui/Button';
-import { MailIcon, ShieldIcon, TargetIcon, UserIcon } from '../components/ui/icons';
+import { ClockIcon, MailIcon, ShieldIcon, TargetIcon, UserIcon } from '../components/ui/icons';
 
 /**
  * A student's profile.
@@ -67,14 +67,24 @@ export function ProfilePage() {
     {
       icon: ShieldIcon,
       label: 'Reliability',
-      value: `${user.reliabilityScore} / 100`,
+      // The number and the words come from one place, so they cannot disagree.
+      value: `${user.reliabilityScore} · ${reliabilityLabel(user.reliabilityScore)}`,
       tint: 'bg-[#34c759]/15 text-[#1f9a45]',
     },
     {
       icon: TargetIcon,
-      label: 'Goals completed',
-      value: String(user.goalsCompleted),
+      label: 'Turned up to',
+      value:
+        user.goalsCompleted === 1 ? '1 finished goal' : `${user.goalsCompleted} finished goals`,
       tint: 'bg-[#ff9500]/15 text-[#e07000]',
+    },
+    // Only once there is one. A row reading "0 missed" on every new profile is noise, and it
+    // invites a reader to go looking for a number that means nothing yet.
+    user.noShowCount > 0 && {
+      icon: ClockIcon,
+      label: 'Missed',
+      value: user.noShowCount === 1 ? '1 goal' : `${user.noShowCount} goals`,
+      tint: 'bg-[#ff3b30]/12 text-[#c62d24]',
     },
   ].filter(Boolean);
 

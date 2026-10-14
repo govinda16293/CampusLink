@@ -5,6 +5,7 @@ import { goalsApi } from '../api/goals';
 import { requestsApi } from '../api/requests';
 import { JoinRequestRow } from '../components/JoinRequestRow';
 import { LobbyChat } from '../components/LobbyChat';
+import { RatingPrompt } from '../components/RatingPrompt';
 import { LobbyRoster } from '../components/LobbyRoster';
 import { Avatar } from '../components/ui/Avatar';
 import { Alert } from '../components/ui/Alert';
@@ -418,6 +419,18 @@ export function GoalDetailPage() {
                   ? 'This one is done.'
                   : 'This goal was called off.'}
           </p>
+        </section>
+      )}
+
+      {/* Asked only once it has actually happened, and placed above the chat because it is the
+          one thing on this page that still wants doing. */}
+      {isMember && goal.status === 'COMPLETED' && (
+        <section className="glass rounded-4xl p-6 sm:p-8">
+          <h2 className="text-[17px] font-semibold text-label">Did everyone turn up?</h2>
+          <p className="mt-1 mb-4 text-[13px] text-label-secondary">
+            Only the people who were here can answer, and nobody sees who said what.
+          </p>
+          <RatingPrompt goalId={goal.id} />
         </section>
       )}
 

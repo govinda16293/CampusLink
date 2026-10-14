@@ -31,7 +31,34 @@ function scryptAsync(
  * Stored format: `scrypt$N$r$p$<salt-b64>$<hash-b64>`. The parameters travel with the hash, so
  * they can be raised later without invalidating existing passwords.
  */
-const N = 32768; // CPU/memory cost — 2^15
+/** The real cost: 2^15, the OWASP recommendation for scrypt. */
+export const PRODUCTION_SCRYPT_COST = 32768;
+
+/**
+ * A deliberately cheap cost, used only while the test suite runs.
+ *
+ * scrypt is slow on purpose, which is exactly right in production and ruinous in a test suite
+ * that registers four hundred accounts: hashing came to dominate the run, and tests began timing
+ * out whenever anything else on the machine wanted the CPU. Lowering it here is safe because the
+ * parameters travel inside the stored hash — `verifyPassword` reads N, r and p back out of the
+ * string rather than assuming today's constants, so a cheap test hash and a real one both verify.
+ *
+ * It is still scrypt, still salted and still constant-time compared; only the work factor moves.
+ */
+export const TEST_SCRYPT_COST = 1024;
+
+/**
+ * Picks the work factor from the environment.
+ *
+ * A function rather than an inline ternary so it can be unit-tested: the one failure that would
+ * matter here is a weak cost escaping into production, and that is worth an assertion rather than
+ * a comment.
+ */
+export function scryptCostFor(nodeEnv: string | undefined): number {
+  return nodeEnv === 'test' ? TEST_SCRYPT_COST : PRODUCTION_SCRYPT_COST;
+}
+
+const N = scryptCostFor(process.env.NODE_ENV);
 const R = 8; // block size
 const P = 1; // parallelisation
 const KEY_LENGTH = 64;

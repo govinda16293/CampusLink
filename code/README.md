@@ -147,15 +147,28 @@ UI → test) and is left runnable and demoable.
 - [x] **Step 4** — Request to join + poster approval (the core state machine)
 - [x] **Step 5** — Lobbies: the member roster, a "Joined" list, and the goal lifecycle
 - [x] **Step 6** — Real-time group chat for a lobby (Socket.IO)
+- [x] **Step 9** — Ratings: who turned up, and the reliability score built from it
 
-Steps 7–12 (notes sharing, trust & safety, ratings, matching, metrics, deployment) are planned
-but not yet in scope.
+Step 8 (report, block and admin unmasking) is next, then a UI pass and deployment. Steps 7, 10
+and 11 — notes sharing, matching and metrics — are deferred by the team rather than dropped.
 
 ## Design notes worth knowing
 
 **The state machine is pure.** Goal, request and lobby transitions live in
 `code/backend/src/domain/` as functions with no database or HTTP dependency, so they can be
 unit-tested exhaustively against illegal transitions, not just the happy path.
+
+**Reliability is a majority verdict, not one person's word.** After a goal is marked done, each
+member answers one question about each of the others: did they turn up. A student counts as absent
+for a goal only when more of the group said absent than present, and a tie goes to the student —
+so one annoyed person cannot mark somebody down on their own. The score itself carries a prior of
+four imaginary good turnouts, which is what stops a single missed first goal reading as zero out
+of a hundred and makes a new account distinguishable from a serial no-show.
+
+**The trust counters are recomputed, never incremented.** A verdict can flip as the rest of a
+group answers, so `recomputeReliability` derives all three numbers from the rating rows every
+time rather than nudging a counter. That makes it idempotent and makes any drift self-correcting
+on the next rating.
 
 **The socket cannot write anything.** Chat messages are sent with an ordinary `POST`, and the
 WebSocket only delivers what that endpoint already accepted. One write path means one place where

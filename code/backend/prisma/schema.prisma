@@ -26,7 +26,8 @@ datasource db {
 //   Step 5 — no new models: the lobby of the class diagram is a Goal plus its accepted
 //            JoinRequests, so its lifecycle lives in Goal.status. See src/domain/goal.ts.
 //   Step 6 — Message
-// (Later steps add Rating, Report, Block, AuditLog.)
+//   Step 9 — Rating
+// (Later steps add Report, Block, AuditLog.)
 
 /// A verified member of the campus. Every other entity hangs off this one.
 model User {
@@ -70,15 +71,27 @@ model User {
   // --- Trust & safety ---
   /// One of USER_ROLE in packages/shared/src/enums.js.
   role             String @default("STUDENT")
-  /// Denormalised, recomputed on lifecycle events (Step 9) rather than derived on every read,
-  /// because it is rendered on every single feed card.
+  /// All three are denormalised rather than derived on every read, because reliability is
+  /// rendered on every single feed card, every roster row and every chat bubble.
+  ///
+  /// They are **recomputed from scratch** by `recomputeReliability` whenever a goal completes or
+  /// a rating lands — never incremented in place. A verdict can flip as more of a group votes, so
+  /// a counter nudged up and down would drift out of agreement with the ratings behind it, and
+  /// nothing would ever notice. Recomputing is idempotent; incrementing is not.
+  ///
+  ///   goalsCompleted   finished goals this student actually turned up to
+  ///   noShowCount      finished goals the group said they did not
+  ///   reliabilityScore derived from the two by src/domain/reliability.ts
   reliabilityScore Int    @default(100)
   goalsCompleted   Int    @default(0)
   noShowCount      Int    @default(0)
 
-  postedGoals  Goal[]        @relation("PostedGoals")
-  joinRequests JoinRequest[]
-  messages     Message[]
+  postedGoals     Goal[]        @relation("PostedGoals")
+  joinRequests    JoinRequest[]
+  messages        Message[]
+  /// Answers this student gave about other people, and answers other people gave about them.
+  ratingsGiven    Rating[]      @relation("RatingsGiven")
+  ratingsReceived Rating[]      @relation("RatingsReceived")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -144,6 +157,7 @@ model Goal {
 
   requests JoinRequest[]
   messages Message[]
+  ratings  Rating[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -213,4 +227,39 @@ model Message {
   /// updatedAt: a message is never edited, so the history two people remember cannot be rewritten
   /// under them. Deleting one is a moderation action and belongs with the report flow in Step 8.
   @@index([goalId, createdAt])
+}
+
+/// One student's answer to "did this person turn up?", for one finished goal.
+///
+/// Attendance, deliberately, and not a star rating. A five-point scale between people who will
+/// see each other in the canteen tomorrow collects politeness, not information — everyone gives
+/// four. Whether somebody came is a fact, it is the thing "reliability" is actually claiming, and
+/// it is what the proposal's no-show flagging needs.
+///
+/// One row per rater per subject per goal, so nobody can vote twice. A rating is never edited:
+/// what you said about somebody stands, which is also what stops a retaliatory change after you
+/// see what they said about you.
+model Rating {
+  id String @id @default(cuid())
+
+  goalId String
+  goal   Goal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  /// Who is answering. Must have been in the lobby themselves.
+  raterId String
+  rater   User   @relation("RatingsGiven", fields: [raterId], references: [id], onDelete: Cascade)
+
+  /// Who they are answering about. Must also have been in the lobby, and never themselves.
+  subjectId String
+  subject   User   @relation("RatingsReceived", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  /// True for "turned up". The verdict for a goal is the majority of these, not any single one —
+  /// see `isAbsentByVote` in src/domain/reliability.ts.
+  attended Boolean
+
+  createdAt DateTime @default(now())
+
+  @@unique([goalId, raterId, subjectId])
+  @@index([subjectId])
+  @@index([goalId])
 }
