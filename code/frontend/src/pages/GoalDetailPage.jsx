@@ -4,6 +4,7 @@ import { REQUEST_MESSAGE_MAX } from '@campuslink/shared';
 import { goalsApi } from '../api/goals';
 import { requestsApi } from '../api/requests';
 import { JoinRequestRow } from '../components/JoinRequestRow';
+import { LobbyChat } from '../components/LobbyChat';
 import { LobbyRoster } from '../components/LobbyRoster';
 import { Avatar } from '../components/ui/Avatar';
 import { Alert } from '../components/ui/Alert';
@@ -358,7 +359,9 @@ export function GoalDetailPage() {
               <p className="mt-3 text-[15px] text-label-secondary">
                 {full
                   ? 'Every spot is taken, so there is nothing left to decide.'
-                  : 'Nobody has asked yet. Requests appear here as they come in.'}
+                  : goal.acceptedCount > 0
+                    ? 'Nothing waiting on you. Anyone new who asks appears here.'
+                    : 'Nobody has asked yet. Requests appear here as they come in.'}
               </p>
             )}
             {pending.length > 0 && (
@@ -415,6 +418,19 @@ export function GoalDetailPage() {
                   ? 'This one is done.'
                   : 'This goal was called off.'}
           </p>
+        </section>
+      )}
+
+      {/* The chat the lobby has been promising since Step 4. Members only, and mounted only once
+          the goal says so — it opens a socket room, and asking for one you are not in is refused
+          by the server anyway. */}
+      {isMember && (
+        <section className="glass rounded-4xl p-6 sm:p-8">
+          <h2 className="text-[17px] font-semibold text-label">Group chat</h2>
+          <p className="mt-1 mb-4 text-[13px] text-label-secondary">
+            Everyone going can see this. Sort out the time and the place here.
+          </p>
+          <LobbyChat goalId={goal.id} writable={goal.status !== 'CANCELLED'} />
         </section>
       )}
 
@@ -482,7 +498,7 @@ export function GoalDetailPage() {
                     : 'The poster called this off.'
                   : `The poster accepted you${
                       goal.anonymous ? ', so their name is now shown above' : ''
-                    }, and you can see who else is going above. Group chat for sorting out the details is on its way.`}
+                    }, so you can see who else is going and talk to them above.`}
               </StatusLine>
               {/* No way out of something that has already happened — the API refuses it too, and
                   a button that can only fail is worse than no button. */}

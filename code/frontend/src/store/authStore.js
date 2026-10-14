@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { authApi } from '../api/auth';
 import { setAuthToken } from '../api/client';
+import { closeSocket } from '../lib/socket';
 
 const TOKEN_STORAGE_KEY = 'campuslink.token';
 
@@ -83,6 +84,9 @@ export const useAuthStore = create((set) => ({
   logout() {
     setAuthToken(null);
     writeStoredToken(null);
+    // A socket authorised as this user must not outlive their session — it is already inside
+    // every lobby room they had open.
+    closeSocket();
     set({ status: 'anonymous', user: null, token: null });
   },
 }));

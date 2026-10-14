@@ -1,6 +1,7 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { prisma } from './db/prisma.js';
+import { attachRealtime } from './realtime/socket.js';
 import { verifyMailTransport } from './services/mail/index.js';
 
 const app = createApp();
@@ -10,6 +11,10 @@ const server = app.listen(env.PORT, () => {
   console.log(`Health check: http://localhost:${env.PORT}/api/health`);
   void verifyMailTransport();
 });
+
+// Shares the HTTP listener rather than binding a second port, so one origin and one set of CORS
+// rules cover both the API and the chat — and so a deployment needs no extra configuration.
+attachRealtime(server);
 
 /**
  * Close the HTTP listener and the database pool before exiting, so in-flight requests finish

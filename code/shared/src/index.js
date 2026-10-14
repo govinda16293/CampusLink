@@ -10,3 +10,4 @@ export * from './schemas/auth.js';
 export * from './schemas/profile.js';
 export * from './schemas/goal.js';
 export * from './schemas/joinRequest.js';
+export * from './schemas/message.js';

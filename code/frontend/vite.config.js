@@ -19,6 +19,13 @@ export default defineConfig({
         target: 'http://localhost:4000',
         changeOrigin: true,
       },
+      // The chat's WebSocket. `ws: true` is what makes this an upgrade-aware proxy rather than
+      // an ordinary HTTP one — without it the handshake 404s and the chat silently never
+      // connects, while every other request keeps working.
+      '/socket.io': {
+        target: 'http://localhost:4000',
+        ws: true,
+      },
     },
   },
 });

@@ -33,6 +33,8 @@ function gradientFor(id = '') {
 
 export function Avatar({ name, id, photoUrl, size = 'md', halo = false, className = '' }) {
   const sizes = {
+    // Chat bubbles, where a full avatar beside every line would crowd the text.
+    xs: 'size-8 text-[10px]',
     sm: 'size-9 text-xs',
     md: 'size-12 text-sm',
     lg: 'size-20 text-xl',

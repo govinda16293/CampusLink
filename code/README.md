@@ -20,7 +20,7 @@ it feels safe to do with someone you don't know.
 | Frontend  | React 18 + Vite + Tailwind CSS v4 — **plain JavaScript**, no TS |
 | Backend   | Node.js + Express + TypeScript                                  |
 | Database  | Prisma ORM — SQLite in development, PostgreSQL in production    |
-| Real-time | Socket.IO (from Step 6)                                         |
+| Real-time | Socket.IO — delivery only; every write is an ordinary HTTP call |
 | Auth      | JWT + college-email OTP verification (from Step 1)              |
 | CI        | GitHub Actions — format, lint, typecheck, test, build           |
 
@@ -146,15 +146,24 @@ UI → test) and is left runnable and demoable.
 - [x] **Step 3** — Post a goal + public feed (with the anonymity serializer)
 - [x] **Step 4** — Request to join + poster approval (the core state machine)
 - [x] **Step 5** — Lobbies: the member roster, a "Joined" list, and the goal lifecycle
+- [x] **Step 6** — Real-time group chat for a lobby (Socket.IO)
 
-Steps 6–12 (real-time chat, notes sharing, trust & safety, ratings, matching, metrics,
-deployment) are planned but not yet in scope.
+Steps 7–12 (notes sharing, trust & safety, ratings, matching, metrics, deployment) are planned
+but not yet in scope.
 
 ## Design notes worth knowing
 
 **The state machine is pure.** Goal, request and lobby transitions live in
 `code/backend/src/domain/` as functions with no database or HTTP dependency, so they can be
 unit-tested exhaustively against illegal transitions, not just the happy path.
+
+**The socket cannot write anything.** Chat messages are sent with an ordinary `POST`, and the
+WebSocket only delivers what that endpoint already accepted. One write path means one place where
+authorization happens — the same service, covered by the same tests. A socket that could also
+write would be a second door into a room full of real names, and the weaker of two doors is the
+one that gets forgotten. Room membership is re-checked against the database on every join, and
+`evict` removes a person's live connections the moment they leave a group, because a check that
+runs only at join time stops being true the moment somebody walks out.
 
 **There is no Lobby table.** The class diagram names Lobby as an entity, but a lobby has no state
 of its own — it is one goal plus the people whose requests were accepted. A second table would

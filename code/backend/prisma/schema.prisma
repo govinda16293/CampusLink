@@ -25,7 +25,8 @@ datasource db {
 //   Step 4 — JoinRequest
 //   Step 5 — no new models: the lobby of the class diagram is a Goal plus its accepted
 //            JoinRequests, so its lifecycle lives in Goal.status. See src/domain/goal.ts.
-// (Later steps add Message, Rating, Report, Block, AuditLog.)
+//   Step 6 — Message
+// (Later steps add Rating, Report, Block, AuditLog.)
 
 /// A verified member of the campus. Every other entity hangs off this one.
 model User {
@@ -34,7 +35,7 @@ model User {
   // --- Identity ---
   /// Always stored lowercased. Restricted to the college domain at the API boundary, which is
   /// what keeps the platform to actual students (proposal §3.3).
-  email        String  @unique
+  email        String @unique
   passwordHash String
   name         String
 
@@ -44,11 +45,11 @@ model User {
   verifiedAt DateTime?
 
   // --- Profile (filled out in Step 2) ---
-  branch      String?
+  branch         String?
   /// Year of study, 1-5.
-  year        Int?
+  year           Int?
   /// One of GENDER in packages/shared/src/enums.js. Drives the gender-preference filter.
-  gender      String  @default("UNDISCLOSED")
+  gender         String    @default("UNDISCLOSED")
   /// Avatar bytes, base64-encoded, with its media type.
   ///
   /// Deliberately never included in any DTO — it is served by GET /users/:id/photo instead. A
@@ -64,19 +65,20 @@ model User {
   photoUpdatedAt DateTime?
   /// Comma-separated interest tags. SQLite has no array type, so the API splits and joins it;
   /// this becomes a native String[] if and when the project moves to PostgreSQL only.
-  interests   String  @default("")
+  interests      String    @default("")
 
   // --- Trust & safety ---
   /// One of USER_ROLE in packages/shared/src/enums.js.
-  role String @default("STUDENT")
+  role             String @default("STUDENT")
   /// Denormalised, recomputed on lifecycle events (Step 9) rather than derived on every read,
   /// because it is rendered on every single feed card.
-  reliabilityScore Int @default(100)
-  goalsCompleted   Int @default(0)
-  noShowCount      Int @default(0)
+  reliabilityScore Int    @default(100)
+  goalsCompleted   Int    @default(0)
+  noShowCount      Int    @default(0)
 
-  postedGoals Goal[] @relation("PostedGoals")
+  postedGoals  Goal[]        @relation("PostedGoals")
   joinRequests JoinRequest[]
+  messages     Message[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -89,15 +91,15 @@ model User {
 /// Only the hash of the code is stored — a leaked database should not let anyone verify as
 /// somebody else. Rows are single-use (`consumedAt`) and short-lived (`expiresAt`).
 model OtpToken {
-  id        String    @id @default(cuid())
-  email     String
-  codeHash  String
-  purpose   String    @default("SIGNUP")
-  expiresAt DateTime
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  purpose    String    @default("SIGNUP")
+  expiresAt  DateTime
   consumedAt DateTime?
   /// Guards against brute-forcing a 6-digit code.
-  attempts  Int       @default(0)
-  createdAt DateTime  @default(now())
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
 
   @@index([email, purpose])
 }
@@ -127,11 +129,11 @@ model Goal {
   // --- Trust & safety (proposal §3.3) ---
   /// Hides the poster's name and photo on the feed. Reliability score stays visible, and identity
   /// is revealed to a requester once they are accepted. Enforced in the serializer, never the UI.
-  anonymous Boolean @default(false)
+  anonymous        Boolean @default(false)
   /// One of GENDER_PREFERENCE. Restricts who may request to join.
-  genderPreference String @default("ANY")
+  genderPreference String  @default("ANY")
   /// Skip manual approval and accept requests automatically until the headcount is met.
-  autoAccept Boolean @default(false)
+  autoAccept       Boolean @default(false)
 
   /// One of GOAL_STATUS.
   status String @default("OPEN")
@@ -141,6 +143,7 @@ model Goal {
   expiresAt DateTime?
 
   requests JoinRequest[]
+  messages Message[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -184,4 +187,30 @@ model JoinRequest {
   @@unique([goalId, requesterId])
   @@index([goalId, status])
   @@index([requesterId])
+}
+
+/// One message in a lobby's group chat.
+///
+/// Hangs off the Goal rather than off a Lobby, for the same reason Step 5 added no Lobby table:
+/// the lobby *is* the goal plus its accepted members, so the goal is what a message belongs to.
+/// Who may read or write one is not stored here — it is `canViewLobby` in src/domain/goal.ts,
+/// asked fresh on every read, every send and every socket join. Caching membership on the message
+/// would mean someone who left the group kept the access they had when they sent it.
+model Message {
+  id String @id @default(cuid())
+
+  goalId String
+  goal   Goal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  body String
+
+  createdAt DateTime @default(now())
+
+  /// The chat is read newest-first and paged backwards, which is exactly this index. There is no
+  /// updatedAt: a message is never edited, so the history two people remember cannot be rewritten
+  /// under them. Deleting one is a moderation action and belongs with the report flow in Step 8.
+  @@index([goalId, createdAt])
 }

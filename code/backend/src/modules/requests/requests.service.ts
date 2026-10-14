@@ -9,6 +9,7 @@ import {
   type IneligibleReason,
   type RequestAction,
 } from '../../domain/joinRequest.js';
+import { evict } from '../../realtime/bus.js';
 import { toGoalDTO } from '../../serializers/goal.serializer.js';
 import { toJoinRequestDTO } from '../../serializers/joinRequest.serializer.js';
 import { viewerContextFor } from '../goals/goals.service.js';
@@ -252,6 +253,10 @@ export async function decideRequest(
   if (!nextStatus(request.status, action)) throw invalidTransition(request.status, action);
 
   if (action === 'reject') {
+    // Only a PENDING request can be declined — the machine has no ACCEPTED --reject--> edge, and
+    // `nextStatus` above has already refused anything else. A poster cannot remove someone who is
+    // already in; only that person can leave. Changing that means adding the edge, the seat
+    // release and the socket eviction together.
     await moveRequest(request.id, request.status, 'reject');
     return respond(viewerId, request.id);
   }
@@ -296,6 +301,10 @@ export async function withdrawRequest(viewerId: string, requestId: string) {
 
   await moveRequest(request.id, request.status, 'withdraw');
   // Only once the status move has succeeded, so a double tap cannot give one spot back twice.
-  if (request.status === REQUEST_STATUS.ACCEPTED) await releaseSeat(request.goalId);
+  if (request.status === REQUEST_STATUS.ACCEPTED) {
+    await releaseSeat(request.goalId);
+    // Their own other tabs stop receiving this lobby's chat the moment they leave it.
+    evict(request.goalId, viewerId);
+  }
   return respond(viewerId, request.id);
 }
