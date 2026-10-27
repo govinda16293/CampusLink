@@ -11,6 +11,7 @@ export const goalsRouter = Router();
 goalsRouter.post('/goals', requireAuth, goalsController.create);
 goalsRouter.get('/goals', requireAuth, goalsController.list);
 goalsRouter.get('/goals/:id', requireAuth, goalsController.getById);
+goalsRouter.patch('/goals/:id', requireAuth, goalsController.update);
 goalsRouter.delete('/goals/:id', requireAuth, goalsController.cancel);
 
 // The lobby. Each lifecycle change is its own verb rather than a PATCH carrying a new status, as

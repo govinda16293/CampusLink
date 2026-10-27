@@ -1,11 +1,23 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { OTP_MAX_ATTEMPTS } from '@campuslink/shared';
 import { createApp } from '../../app.js';
 import { prisma } from '../../db/prisma.js';
 import { resetDatabase, setKnownOtp } from '../../test/helpers.js';
 
+/*
+ * One listening server for the whole file, not one per request.
+ *
+ * `request(server)` makes supertest bind a fresh ephemeral server for every single call, and this
+ * suite makes thousands of them. That churn produced an intermittent "socket hang up" on a random
+ * test roughly one run in five — never reproducible for a file on its own. Handing supertest a
+ * server that is already listening reuses one socket for the file instead.
+ */
 const app = createApp();
+const server = app.listen(0);
+afterAll(() => {
+  server.close();
+});
 
 const VALID = { name: 'Ashish Bajaj', email: 'test_be24@thapar.edu', password: 'correct-horse-1' };
 
@@ -14,9 +26,9 @@ beforeEach(resetDatabase);
 /** Signs up and verifies an account, returning its session token. */
 async function registerVerifiedUser(overrides: Partial<typeof VALID> = {}) {
   const user = { ...VALID, ...overrides };
-  await request(app).post('/api/auth/signup').send(user).expect(201);
+  await request(server).post('/api/auth/signup').send(user).expect(201);
   await setKnownOtp(user.email, '123456');
-  const res = await request(app)
+  const res = await request(server)
     .post('/api/auth/verify-otp')
     .send({ email: user.email, code: '123456' })
     .expect(200);
@@ -25,7 +37,7 @@ async function registerVerifiedUser(overrides: Partial<typeof VALID> = {}) {
 
 describe('POST /api/auth/signup', () => {
   it('creates an unverified account and issues a passcode', async () => {
-    const res = await request(app).post('/api/auth/signup').send(VALID).expect(201);
+    const res = await request(server).post('/api/auth/signup').send(VALID).expect(201);
 
     expect(res.body.email).toBe(VALID.email);
     const user = await prisma.user.findUnique({ where: { email: VALID.email } });
@@ -34,14 +46,14 @@ describe('POST /api/auth/signup', () => {
   });
 
   it('never stores the password in plaintext', async () => {
-    await request(app).post('/api/auth/signup').send(VALID).expect(201);
+    await request(server).post('/api/auth/signup').send(VALID).expect(201);
     const user = await prisma.user.findUnique({ where: { email: VALID.email } });
     expect(user?.passwordHash).not.toContain(VALID.password);
     expect(user?.passwordHash.startsWith('scrypt$')).toBe(true);
   });
 
   it('rejects an email outside the college domain', async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post('/api/auth/signup')
       .send({ ...VALID, email: 'someone@gmail.com' })
       .expect(400);
@@ -51,7 +63,7 @@ describe('POST /api/auth/signup', () => {
   });
 
   it('rejects a short password', async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post('/api/auth/signup')
       .send({ ...VALID, password: 'short' })
       .expect(400);
@@ -59,7 +71,7 @@ describe('POST /api/auth/signup', () => {
   });
 
   it('normalises the email to lowercase, so casing cannot create a second account', async () => {
-    await request(app)
+    await request(server)
       .post('/api/auth/signup')
       .send({ ...VALID, email: 'TEST_BE24@Thapar.edu' })
       .expect(201);
@@ -67,8 +79,8 @@ describe('POST /api/auth/signup', () => {
   });
 
   it('treats a repeat signup on an unverified address as a resend, not an error', async () => {
-    await request(app).post('/api/auth/signup').send(VALID).expect(201);
-    await request(app).post('/api/auth/signup').send(VALID).expect(201);
+    await request(server).post('/api/auth/signup').send(VALID).expect(201);
+    await request(server).post('/api/auth/signup').send(VALID).expect(201);
 
     // Exactly one passcode stays live — the older one is replaced, not accumulated.
     expect(await prisma.otpToken.count({ where: { email: VALID.email } })).toBe(1);
@@ -77,7 +89,7 @@ describe('POST /api/auth/signup', () => {
 
   it('refuses to overwrite an already-verified account', async () => {
     await registerVerifiedUser();
-    const res = await request(app).post('/api/auth/signup').send(VALID).expect(409);
+    const res = await request(server).post('/api/auth/signup').send(VALID).expect(409);
     expect(res.body.error.code).toBe('CONFLICT');
   });
 });
@@ -102,10 +114,10 @@ describe('POST /api/auth/verify-otp', () => {
   });
 
   it('rejects a wrong code and counts the attempt', async () => {
-    await request(app).post('/api/auth/signup').send(VALID).expect(201);
+    await request(server).post('/api/auth/signup').send(VALID).expect(201);
     await setKnownOtp(VALID.email, '123456');
 
-    await request(app)
+    await request(server)
       .post('/api/auth/verify-otp')
       .send({ email: VALID.email, code: '999999' })
       .expect(400);
@@ -118,18 +130,18 @@ describe('POST /api/auth/verify-otp', () => {
 
   it('burns the passcode after too many wrong guesses', async () => {
     // This is what keeps a 6-digit code from being brute-forced inside its 10-minute window.
-    await request(app).post('/api/auth/signup').send(VALID).expect(201);
+    await request(server).post('/api/auth/signup').send(VALID).expect(201);
     await setKnownOtp(VALID.email, '123456');
 
     for (let i = 0; i < OTP_MAX_ATTEMPTS; i += 1) {
-      await request(app)
+      await request(server)
         .post('/api/auth/verify-otp')
         .send({ email: VALID.email, code: '999999' })
         .expect(400);
     }
 
     // Even the correct code is now refused.
-    const res = await request(app)
+    const res = await request(server)
       .post('/api/auth/verify-otp')
       .send({ email: VALID.email, code: '123456' })
       .expect(400);
@@ -137,14 +149,14 @@ describe('POST /api/auth/verify-otp', () => {
   });
 
   it('rejects an expired passcode', async () => {
-    await request(app).post('/api/auth/signup').send(VALID).expect(201);
+    await request(server).post('/api/auth/signup').send(VALID).expect(201);
     const token = await setKnownOtp(VALID.email, '123456');
     await prisma.otpToken.update({
       where: { id: token.id },
       data: { expiresAt: new Date(Date.now() - 1000) },
     });
 
-    const res = await request(app)
+    const res = await request(server)
       .post('/api/auth/verify-otp')
       .send({ email: VALID.email, code: '123456' })
       .expect(400);
@@ -152,7 +164,7 @@ describe('POST /api/auth/verify-otp', () => {
   });
 
   it('gives nothing away about an address that never signed up', async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post('/api/auth/verify-otp')
       .send({ email: 'nobody_be24@thapar.edu', code: '123456' })
       .expect(400);
@@ -163,7 +175,7 @@ describe('POST /api/auth/verify-otp', () => {
 describe('POST /api/auth/login', () => {
   it('returns a token for correct credentials', async () => {
     await registerVerifiedUser();
-    const res = await request(app)
+    const res = await request(server)
       .post('/api/auth/login')
       .send({ email: VALID.email, password: VALID.password })
       .expect(200);
@@ -176,12 +188,12 @@ describe('POST /api/auth/login', () => {
     // Different messages here would let anyone test which students have signed up.
     await registerVerifiedUser();
 
-    const wrongPassword = await request(app)
+    const wrongPassword = await request(server)
       .post('/api/auth/login')
       .send({ email: VALID.email, password: 'wrong-password' })
       .expect(401);
 
-    const unknownUser = await request(app)
+    const unknownUser = await request(server)
       .post('/api/auth/login')
       .send({ email: 'ghost_be24@thapar.edu', password: 'wrong-password' })
       .expect(401);
@@ -190,8 +202,8 @@ describe('POST /api/auth/login', () => {
   });
 
   it('refuses an unverified account, and says why', async () => {
-    await request(app).post('/api/auth/signup').send(VALID).expect(201);
-    const res = await request(app)
+    await request(server).post('/api/auth/signup').send(VALID).expect(201);
+    const res = await request(server)
       .post('/api/auth/login')
       .send({ email: VALID.email, password: VALID.password })
       .expect(403);
@@ -202,7 +214,7 @@ describe('POST /api/auth/login', () => {
 describe('GET /api/auth/me', () => {
   it('returns the signed-in user', async () => {
     const { token } = await registerVerifiedUser();
-    const res = await request(app)
+    const res = await request(server)
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -212,27 +224,27 @@ describe('GET /api/auth/me', () => {
   });
 
   it('rejects a missing, malformed or forged token the same way', async () => {
-    await request(app).get('/api/auth/me').expect(401);
-    await request(app).get('/api/auth/me').set('Authorization', 'Bearer nonsense').expect(401);
-    await request(app).get('/api/auth/me').set('Authorization', 'Basic abc').expect(401);
+    await request(server).get('/api/auth/me').expect(401);
+    await request(server).get('/api/auth/me').set('Authorization', 'Bearer nonsense').expect(401);
+    await request(server).get('/api/auth/me').set('Authorization', 'Basic abc').expect(401);
   });
 
   it('rejects a valid token whose account has been deleted', async () => {
     const { token } = await registerVerifiedUser();
     await prisma.user.deleteMany();
-    await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`).expect(401);
+    await request(server).get('/api/auth/me').set('Authorization', `Bearer ${token}`).expect(401);
   });
 });
 
 describe('POST /api/auth/resend-otp', () => {
   it('responds identically for a real pending account and an unknown address', async () => {
-    await request(app).post('/api/auth/signup').send(VALID).expect(201);
+    await request(server).post('/api/auth/signup').send(VALID).expect(201);
 
-    const real = await request(app)
+    const real = await request(server)
       .post('/api/auth/resend-otp')
       .send({ email: VALID.email })
       .expect(200);
-    const fake = await request(app)
+    const fake = await request(server)
       .post('/api/auth/resend-otp')
       .send({ email: 'nobody_be24@thapar.edu' })
       .expect(200);

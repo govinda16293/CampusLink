@@ -1,27 +1,39 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../app.js';
 import { prisma } from '../../db/prisma.js';
 import { resetDatabase, setKnownOtp } from '../../test/helpers.js';
 
+/*
+ * One listening server for the whole file, not one per request.
+ *
+ * `request(server)` makes supertest bind a fresh ephemeral server for every single call, and this
+ * suite makes thousands of them. That churn produced an intermittent "socket hang up" on a random
+ * test roughly one run in five — never reproducible for a file on its own. Handing supertest a
+ * server that is already listening reuses one socket for the file instead.
+ */
 const app = createApp();
+const server = app.listen(0);
+afterAll(() => {
+  server.close();
+});
 
 beforeEach(resetDatabase);
 
 async function registerVerifiedUser(email: string, name = 'Ashish Bajaj') {
-  await request(app)
+  await request(server)
     .post('/api/auth/signup')
     .send({ name, email, password: 'correct-horse-1' })
     .expect(201);
   await setKnownOtp(email, '123456');
-  const res = await request(app).post('/api/auth/verify-otp').send({ email, code: '123456' });
+  const res = await request(server).post('/api/auth/verify-otp').send({ email, code: '123456' });
   return { token: res.body.token as string, user: res.body.user };
 }
 
 describe('GET /api/users/me', () => {
   it('returns the signed-in student with their completeness score', async () => {
     const { token } = await registerVerifiedUser('a_be24@thapar.edu');
-    const res = await request(app)
+    const res = await request(server)
       .get('/api/users/me')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -36,7 +48,7 @@ describe('GET /api/users/me', () => {
 describe('PATCH /api/users/me', () => {
   it('saves the profile and recomputes completeness', async () => {
     const { token } = await registerVerifiedUser('a_be24@thapar.edu');
-    const res = await request(app)
+    const res = await request(server)
       .patch('/api/users/me')
       .set('Authorization', `Bearer ${token}`)
       .send({ branch: 'CSE', year: 2, gender: 'MALE', interests: ['gym', 'chess'] })
@@ -51,8 +63,12 @@ describe('PATCH /api/users/me', () => {
     const { token } = await registerVerifiedUser('a_be24@thapar.edu');
     const auth = { Authorization: `Bearer ${token}` };
 
-    await request(app).patch('/api/users/me').set(auth).send({ branch: 'CSE' }).expect(200);
-    const res = await request(app).patch('/api/users/me').set(auth).send({ year: 3 }).expect(200);
+    await request(server).patch('/api/users/me').set(auth).send({ branch: 'CSE' }).expect(200);
+    const res = await request(server)
+      .patch('/api/users/me')
+      .set(auth)
+      .send({ year: 3 })
+      .expect(200);
 
     expect(res.body.user.branch).toBe('CSE');
     expect(res.body.user.year).toBe(3);
@@ -71,7 +87,7 @@ describe('PATCH /api/users/me', () => {
       { email: 'someone_else@thapar.edu' },
       { id: 'some-other-id' },
     ]) {
-      const res = await request(app).patch('/api/users/me').set(auth).send(payload).expect(400);
+      const res = await request(server).patch('/api/users/me').set(auth).send(payload).expect(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     }
 
@@ -85,7 +101,7 @@ describe('PATCH /api/users/me', () => {
 
   it('rejects a branch outside the enum', async () => {
     const { token } = await registerVerifiedUser('a_be24@thapar.edu');
-    const res = await request(app)
+    const res = await request(server)
       .patch('/api/users/me')
       .set('Authorization', `Bearer ${token}`)
       .send({ branch: 'HOGWARTS' })
@@ -95,7 +111,7 @@ describe('PATCH /api/users/me', () => {
 
   it('rejects an impossible year of study', async () => {
     const { token } = await registerVerifiedUser('a_be24@thapar.edu');
-    await request(app)
+    await request(server)
       .patch('/api/users/me')
       .set('Authorization', `Bearer ${token}`)
       .send({ year: 9 })
@@ -105,7 +121,7 @@ describe('PATCH /api/users/me', () => {
   it('de-duplicates interests case-insensitively', async () => {
     // Otherwise "Gym" and "gym" would count as two interests for Step 10's matching.
     const { token } = await registerVerifiedUser('a_be24@thapar.edu');
-    const res = await request(app)
+    const res = await request(server)
       .patch('/api/users/me')
       .set('Authorization', `Bearer ${token}`)
       .send({ interests: ['Gym', 'gym', 'GYM', 'chess'] })
@@ -116,13 +132,13 @@ describe('PATCH /api/users/me', () => {
   it('survives a round-trip through comma-separated storage', async () => {
     const { token } = await registerVerifiedUser('a_be24@thapar.edu');
     const auth = { Authorization: `Bearer ${token}` };
-    await request(app)
+    await request(server)
       .patch('/api/users/me')
       .set(auth)
       .send({ interests: ['table tennis', 'late-night maggi'] })
       .expect(200);
 
-    const res = await request(app).get('/api/users/me').set(auth).expect(200);
+    const res = await request(server).get('/api/users/me').set(auth).expect(200);
     expect(res.body.user.interests).toEqual(['table tennis', 'late-night maggi']);
   });
 });
@@ -132,7 +148,7 @@ describe('GET /api/users/:id', () => {
     const alice = await registerVerifiedUser('alice_be24@thapar.edu', 'Alice Sharma');
     const bob = await registerVerifiedUser('bob_be24@thapar.edu', 'Bob Singh');
 
-    const res = await request(app)
+    const res = await request(server)
       .get(`/api/users/${alice.user.id}`)
       .set('Authorization', `Bearer ${bob.token}`)
       .expect(200);
@@ -145,7 +161,7 @@ describe('GET /api/users/:id', () => {
 
   it('returns the full private profile when you ask for your own id', async () => {
     const { token, user } = await registerVerifiedUser('a_be24@thapar.edu');
-    const res = await request(app)
+    const res = await request(server)
       .get(`/api/users/${user.id}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -154,15 +170,18 @@ describe('GET /api/users/:id', () => {
 
   it('404s for a student who does not exist', async () => {
     const { token } = await registerVerifiedUser('a_be24@thapar.edu');
-    await request(app).get('/api/users/nope').set('Authorization', `Bearer ${token}`).expect(404);
+    await request(server)
+      .get('/api/users/nope')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
   });
 });
 
 describe('profile routes require authentication', () => {
   it('401s without a token', async () => {
-    await request(app).get('/api/users/me').expect(401);
-    await request(app).patch('/api/users/me').send({ branch: 'CSE' }).expect(401);
-    await request(app).get('/api/users/someone').expect(401);
+    await request(server).get('/api/users/me').expect(401);
+    await request(server).patch('/api/users/me').send({ branch: 'CSE' }).expect(401);
+    await request(server).get('/api/users/someone').expect(401);
   });
 });
 
@@ -180,7 +199,7 @@ describe('profile photo', () => {
 
     expect(user.photoUrl).toBeNull();
 
-    const res = await request(app)
+    const res = await request(server)
       .post('/api/users/me/photo')
       .set(auth)
       .send({ dataUrl })
@@ -194,13 +213,13 @@ describe('profile photo', () => {
 
   it('serves the bytes with the right media type and a cache header', async () => {
     const { token, user } = await registerVerifiedUser('a_be24@thapar.edu');
-    await request(app)
+    await request(server)
       .post('/api/users/me/photo')
       .set('Authorization', `Bearer ${token}`)
       .send({ dataUrl })
       .expect(200);
 
-    const res = await request(app).get(`/api/users/${user.id}/photo`).expect(200);
+    const res = await request(server).get(`/api/users/${user.id}/photo`).expect(200);
     expect(res.headers['content-type']).toContain('image/jpeg');
     expect(res.headers['cache-control']).toContain('immutable');
     expect(res.body.length).toBeGreaterThan(0);
@@ -209,7 +228,7 @@ describe('profile photo', () => {
   it('rejects an SVG, which could carry script', async () => {
     // The bytes are served straight back to a browser, so this one matters.
     const { token } = await registerVerifiedUser('a_be24@thapar.edu');
-    await request(app)
+    await request(server)
       .post('/api/users/me/photo')
       .set('Authorization', `Bearer ${token}`)
       .send({ dataUrl: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' })
@@ -218,7 +237,7 @@ describe('profile photo', () => {
 
   it('rejects a remote URL instead of an upload', async () => {
     const { token } = await registerVerifiedUser('a_be24@thapar.edu');
-    await request(app)
+    await request(server)
       .post('/api/users/me/photo')
       .set('Authorization', `Bearer ${token}`)
       .send({ dataUrl: 'https://example.com/avatar.jpg' })
@@ -228,20 +247,20 @@ describe('profile photo', () => {
   it('removes a photo', async () => {
     const { token, user } = await registerVerifiedUser('a_be24@thapar.edu');
     const auth = { Authorization: `Bearer ${token}` };
-    await request(app).post('/api/users/me/photo').set(auth).send({ dataUrl }).expect(200);
+    await request(server).post('/api/users/me/photo').set(auth).send({ dataUrl }).expect(200);
 
-    const res = await request(app).delete('/api/users/me/photo').set(auth).expect(200);
+    const res = await request(server).delete('/api/users/me/photo').set(auth).expect(200);
     expect(res.body.user.photoUrl).toBeNull();
-    await request(app).get(`/api/users/${user.id}/photo`).expect(404);
+    await request(server).get(`/api/users/${user.id}/photo`).expect(404);
   });
 
   it('404s for a student with no photo', async () => {
     const { user } = await registerVerifiedUser('a_be24@thapar.edu');
-    await request(app).get(`/api/users/${user.id}/photo`).expect(404);
+    await request(server).get(`/api/users/${user.id}/photo`).expect(404);
   });
 
   it('requires authentication to upload', async () => {
-    await request(app).post('/api/users/me/photo').send({ dataUrl }).expect(401);
-    await request(app).delete('/api/users/me/photo').expect(401);
+    await request(server).post('/api/users/me/photo').send({ dataUrl }).expect(401);
+    await request(server).delete('/api/users/me/photo').expect(401);
   });
 });

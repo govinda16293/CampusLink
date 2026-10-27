@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { createGoalSchema, feedQuerySchema } from '@campuslink/shared';
+import { createGoalSchema, feedQuerySchema, updateGoalSchema } from '@campuslink/shared';
 import { AppError } from '../../lib/AppError.js';
 import * as goalsService from './goals.service.js';
 
@@ -18,6 +18,14 @@ export async function list(req: Request, res: Response) {
 export async function getById(req: Request, res: Response) {
   if (!req.auth) throw AppError.unauthorized();
   res.json({ goal: await goalsService.getGoal(req.auth.userId, String(req.params.id)) });
+}
+
+export async function update(req: Request, res: Response) {
+  if (!req.auth) throw AppError.unauthorized();
+  const input = updateGoalSchema.parse(req.body);
+  res.json({
+    goal: await goalsService.updateGoal(req.auth.userId, String(req.params.id), input),
+  });
 }
 
 export async function cancel(req: Request, res: Response) {

@@ -7,12 +7,15 @@
  * (anonymity, auto-accept) carry real consequences, so the explanation should be as easy to hit
  * as the switch.
  */
-export function Toggle({ label, description, checked, onChange }) {
+export function Toggle({ label, description, checked, onChange, disabled = false }) {
   return (
-    <label className="group flex cursor-pointer items-start gap-4">
+    <label
+      className={`group flex items-start gap-4 ${disabled ? 'cursor-not-allowed opacity-55' : 'cursor-pointer'}`}
+    >
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
         className="peer sr-only"
       />
@@ -32,7 +35,8 @@ export function Toggle({ label, description, checked, onChange }) {
           className={[
             'absolute left-0.5 top-0.5 h-6 w-9 rounded-full bg-white',
             'shadow-[0_2px_6px_rgb(0_0_0/0.18),0_0_0_0.5px_rgb(0_0_0/0.04)]',
-            'transition duration-300 ease-spring group-active:scale-110',
+            'transition duration-300 ease-spring',
+            disabled ? '' : 'group-active:scale-110',
             checked ? 'translate-x-4.5' : 'translate-x-0',
           ].join(' ')}
         />

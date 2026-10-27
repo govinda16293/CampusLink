@@ -231,6 +231,12 @@ model Message {
 
   body String
 
+  /// One of MESSAGE_KIND. USER is somebody typing; SYSTEM is the app reporting a change to the
+  /// goal — a new time, for instance — so the group finds out in the place they are already
+  /// looking rather than by turning up at the wrong hour. A system line still carries a sender,
+  /// because it is always the result of something a particular person did.
+  kind String @default("USER")
+
   createdAt DateTime @default(now())
 
   /// The chat is read newest-first and paged backwards, which is exactly this index. There is no

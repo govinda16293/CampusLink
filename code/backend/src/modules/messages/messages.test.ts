@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../app.js';
 import { prisma } from '../../db/prisma.js';
@@ -12,19 +12,31 @@ import { resetDatabase, setKnownOtp } from '../../test/helpers.js';
  * the only question worth asking first is who can read it.
  */
 
+/*
+ * One listening server for the whole file, not one per request.
+ *
+ * `request(server)` makes supertest bind a fresh ephemeral server for every single call, and this
+ * suite makes thousands of them. That churn produced an intermittent "socket hang up" on a random
+ * test roughly one run in five — never reproducible for a file on its own. Handing supertest a
+ * server that is already listening reuses one socket for the file instead.
+ */
 const app = createApp();
+const server = app.listen(0);
+afterAll(() => {
+  server.close();
+});
 
 beforeEach(resetDatabase);
 
 type Student = { id: string; auth: { Authorization: string } };
 
 async function registerVerifiedUser(email: string, name = 'Test Student'): Promise<Student> {
-  await request(app)
+  await request(server)
     .post('/api/auth/signup')
     .send({ name, email, password: 'correct-horse-1' })
     .expect(201);
   await setKnownOtp(email, '123456');
-  const res = await request(app).post('/api/auth/verify-otp').send({ email, code: '123456' });
+  const res = await request(server).post('/api/auth/verify-otp').send({ email, code: '123456' });
   return { id: res.body.user.id, auth: { Authorization: `Bearer ${res.body.token}` } };
 }
 
@@ -36,7 +48,7 @@ const GOAL = {
 };
 
 async function postGoal(poster: Student, overrides: Record<string, unknown> = {}) {
-  const res = await request(app)
+  const res = await request(server)
     .post('/api/goals')
     .set(poster.auth)
     .send({ ...GOAL, ...overrides })
@@ -45,12 +57,12 @@ async function postGoal(poster: Student, overrides: Record<string, unknown> = {}
 }
 
 async function join(student: Student, poster: Student, goalId: string) {
-  const asked = await request(app)
+  const asked = await request(server)
     .post(`/api/goals/${goalId}/requests`)
     .set(student.auth)
     .send({})
     .expect(201);
-  await request(app)
+  await request(server)
     .post(`/api/requests/${asked.body.request.id}/accept`)
     .set(poster.auth)
     .expect(200);
@@ -58,10 +70,10 @@ async function join(student: Student, poster: Student, goalId: string) {
 }
 
 const send = (student: Student, goalId: string, body: string) =>
-  request(app).post(`/api/goals/${goalId}/messages`).set(student.auth).send({ body });
+  request(server).post(`/api/goals/${goalId}/messages`).set(student.auth).send({ body });
 
 const history = (student: Student, goalId: string, query = '') =>
-  request(app).get(`/api/goals/${goalId}/messages${query}`).set(student.auth);
+  request(server).get(`/api/goals/${goalId}/messages${query}`).set(student.auth);
 
 describe('who can read and write a lobby chat', () => {
   it('lets the poster and an accepted member talk to each other', async () => {
@@ -87,7 +99,7 @@ describe('who can read and write a lobby chat', () => {
     const waiting = await registerVerifiedUser('waiting_be24@thapar.edu');
     const goal = await postGoal(poster);
     await send(poster, goal.id, 'Anyone coming?').expect(201);
-    await request(app)
+    await request(server)
       .post(`/api/goals/${goal.id}/requests`)
       .set(waiting.auth)
       .send({})
@@ -116,7 +128,7 @@ describe('who can read and write a lobby chat', () => {
     const requestId = await join(member, poster, goal.id);
     await history(member, goal.id).expect(200);
 
-    await request(app).post(`/api/requests/${requestId}/withdraw`).set(member.auth).expect(200);
+    await request(server).post(`/api/requests/${requestId}/withdraw`).set(member.auth).expect(200);
 
     // Membership is asked fresh on every call, not cached on the session, so this takes effect
     // immediately rather than whenever their token happens to expire.
@@ -142,7 +154,7 @@ describe('who can read and write a lobby chat', () => {
     await join(member, poster, goal.id);
 
     // `.strict()` on the schema: a body carrying a sender is rejected outright, not ignored.
-    await request(app)
+    await request(server)
       .post(`/api/goals/${goal.id}/messages`)
       .set(member.auth)
       .send({ body: 'I am the poster', senderId: poster.id })
@@ -183,8 +195,8 @@ describe('writing rules', () => {
     const member = await registerVerifiedUser('member_be24@thapar.edu');
     const goal = await postGoal(poster);
     await join(member, poster, goal.id);
-    await request(app).post(`/api/goals/${goal.id}/close`).set(poster.auth).expect(200);
-    await request(app).post(`/api/goals/${goal.id}/complete`).set(poster.auth).expect(200);
+    await request(server).post(`/api/goals/${goal.id}/close`).set(poster.auth).expect(200);
+    await request(server).post(`/api/goals/${goal.id}/complete`).set(poster.auth).expect(200);
 
     // People still have things to say afterwards — thanks, or who is bringing the notes back.
     await send(member, goal.id, 'That was useful, thanks').expect(201);
@@ -195,7 +207,7 @@ describe('writing rules', () => {
     const member = await registerVerifiedUser('member_be24@thapar.edu');
     const goal = await postGoal(poster);
     await join(member, poster, goal.id);
-    await request(app).delete(`/api/goals/${goal.id}`).set(poster.auth).expect(200);
+    await request(server).delete(`/api/goals/${goal.id}`).set(poster.auth).expect(200);
 
     const res = await send(member, goal.id, 'what happened?').expect(409);
     expect(res.body.error.code).toBe('NOT_OPEN');

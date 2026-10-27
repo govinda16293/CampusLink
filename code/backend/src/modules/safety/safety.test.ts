@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { USER_ROLE } from '@campuslink/shared';
 import { createApp } from '../../app.js';
@@ -13,19 +13,31 @@ import { resetDatabase, setKnownOtp } from '../../test/helpers.js';
  * are, and that an admin cannot see behind anonymity without leaving a permanent record.
  */
 
+/*
+ * One listening server for the whole file, not one per request.
+ *
+ * `request(server)` makes supertest bind a fresh ephemeral server for every single call, and this
+ * suite makes thousands of them. That churn produced an intermittent "socket hang up" on a random
+ * test roughly one run in five — never reproducible for a file on its own. Handing supertest a
+ * server that is already listening reuses one socket for the file instead.
+ */
 const app = createApp();
+const server = app.listen(0);
+afterAll(() => {
+  server.close();
+});
 
 beforeEach(resetDatabase);
 
 type Student = { id: string; auth: { Authorization: string } };
 
 async function registerVerifiedUser(email: string, name = 'Test Student'): Promise<Student> {
-  await request(app)
+  await request(server)
     .post('/api/auth/signup')
     .send({ name, email, password: 'correct-horse-1' })
     .expect(201);
   await setKnownOtp(email, '123456');
-  const res = await request(app).post('/api/auth/verify-otp').send({ email, code: '123456' });
+  const res = await request(server).post('/api/auth/verify-otp').send({ email, code: '123456' });
   return { id: res.body.user.id, auth: { Authorization: `Bearer ${res.body.token}` } };
 }
 
@@ -34,7 +46,7 @@ async function makeAdmin(student: Student) {
 }
 
 async function postGoal(poster: Student, overrides: Record<string, unknown> = {}) {
-  const res = await request(app)
+  const res = await request(server)
     .post('/api/goals')
     .set(poster.auth)
     .send({
@@ -48,11 +60,11 @@ async function postGoal(poster: Student, overrides: Record<string, unknown> = {}
   return res.body.goal as { id: string };
 }
 
-const feed = (student: Student) => request(app).get('/api/goals').set(student.auth);
+const feed = (student: Student) => request(server).get('/api/goals').set(student.auth);
 const blockUser = (student: Student, targetId: string) =>
-  request(app).post(`/api/blocks/${targetId}`).set(student.auth);
+  request(server).post(`/api/blocks/${targetId}`).set(student.auth);
 const fileReport = (student: Student, body: Record<string, unknown>) =>
-  request(app).post('/api/reports').set(student.auth).send(body);
+  request(server).post('/api/reports').set(student.auth).send(body);
 
 describe('blocking', () => {
   it('hides the blocked student’s goals from the blocker’s feed', async () => {
@@ -84,12 +96,12 @@ describe('blocking', () => {
     const myGoal = await postGoal(student);
     await blockUser(student, annoying.id).expect(201);
 
-    await request(app)
+    await request(server)
       .post(`/api/goals/${theirGoal.id}/requests`)
       .set(student.auth)
       .send({})
       .expect(404);
-    await request(app)
+    await request(server)
       .post(`/api/goals/${myGoal.id}/requests`)
       .set(annoying.auth)
       .send({})
@@ -116,7 +128,7 @@ describe('blocking', () => {
     await blockUser(student, annoying.id).expect(201);
     expect(await prisma.block.count()).toBe(1);
 
-    await request(app).delete(`/api/blocks/${annoying.id}`).set(student.auth).expect(200);
+    await request(server).delete(`/api/blocks/${annoying.id}`).set(student.auth).expect(200);
     expect((await feed(student).expect(200)).body.goals).toHaveLength(1);
   });
 
@@ -130,11 +142,11 @@ describe('blocking', () => {
     const two = await registerVerifiedUser('two_be24@thapar.edu', 'Two');
     await blockUser(one, two.id).expect(201);
 
-    const mine = await request(app).get('/api/blocks').set(one.auth).expect(200);
+    const mine = await request(server).get('/api/blocks').set(one.auth).expect(200);
     expect(mine.body.blocks.map((b: { name: string }) => b.name)).toEqual(['Two']);
 
     // Telling somebody who has blocked them is an invitation to go and ask why.
-    const theirs = await request(app).get('/api/blocks').set(two.auth).expect(200);
+    const theirs = await request(server).get('/api/blocks').set(two.auth).expect(200);
     expect(theirs.body.blocks).toEqual([]);
   });
 
@@ -142,12 +154,12 @@ describe('blocking', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
     const member = await registerVerifiedUser('member_be24@thapar.edu');
     const goal = await postGoal(poster);
-    const asked = await request(app)
+    const asked = await request(server)
       .post(`/api/goals/${goal.id}/requests`)
       .set(member.auth)
       .send({})
       .expect(201);
-    await request(app)
+    await request(server)
       .post(`/api/requests/${asked.body.request.id}/accept`)
       .set(poster.auth)
       .expect(200);
@@ -156,7 +168,7 @@ describe('blocking', () => {
 
     // Deliberate: silently dissolving a group somebody committed to, and a chat other people are
     // relying on, is a bigger act than the student asked for. Leaving stays their own choice.
-    await request(app).get(`/api/goals/${goal.id}/lobby`).set(member.auth).expect(200);
+    await request(server).get(`/api/goals/${goal.id}/lobby`).set(member.auth).expect(200);
   });
 });
 
@@ -215,7 +227,7 @@ describe('reporting', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
     const outsider = await registerVerifiedUser('outsider_be24@thapar.edu');
     const goal = await postGoal(poster);
-    const sent = await request(app)
+    const sent = await request(server)
       .post(`/api/goals/${goal.id}/messages`)
       .set(poster.auth)
       .send({ body: 'private planning' })
@@ -232,19 +244,19 @@ describe('reporting', () => {
 describe('the admin area', () => {
   it('refuses an ordinary student', async () => {
     const student = await registerVerifiedUser('student_be24@thapar.edu');
-    await request(app).get('/api/admin/reports').set(student.auth).expect(403);
-    await request(app).get('/api/admin/audit').set(student.auth).expect(403);
+    await request(server).get('/api/admin/reports').set(student.auth).expect(403);
+    await request(server).get('/api/admin/audit').set(student.auth).expect(403);
   });
 
   it('refuses a token minted before the account was demoted', async () => {
     const admin = await registerVerifiedUser('admin_be24@thapar.edu');
     await makeAdmin(admin);
-    await request(app).get('/api/admin/reports').set(admin.auth).expect(200);
+    await request(server).get('/api/admin/reports').set(admin.auth).expect(200);
 
     // The role lives in the JWT too, and trusting it here would keep a demoted moderator working
     // until their session expired. requireAdmin reads the database instead.
     await prisma.user.update({ where: { id: admin.id }, data: { role: USER_ROLE.STUDENT } });
-    await request(app).get('/api/admin/reports').set(admin.auth).expect(403);
+    await request(server).get('/api/admin/reports').set(admin.auth).expect(403);
   });
 
   it('lists reports without naming an anonymous subject', async () => {
@@ -255,7 +267,7 @@ describe('the admin area', () => {
     const goal = await postGoal(poster, { anonymous: true });
     await fileReport(student, { reason: 'SAFETY', goalId: goal.id }).expect(201);
 
-    const res = await request(app).get('/api/admin/reports').set(admin.auth).expect(200);
+    const res = await request(server).get('/api/admin/reports').set(admin.auth).expect(200);
     const [report] = res.body.reports;
     expect(report.subject.isAnonymous).toBe(true);
     expect(report.subject.name).toBeNull();
@@ -271,7 +283,7 @@ describe('the admin area', () => {
     const goal = await postGoal(poster);
     await fileReport(student, { reason: 'SPAM', goalId: goal.id }).expect(201);
 
-    const res = await request(app).get('/api/admin/reports').set(admin.auth).expect(200);
+    const res = await request(server).get('/api/admin/reports').set(admin.auth).expect(200);
     expect(res.body.reports[0].subject.name).toBe('Open Poster');
     expect(res.body.reports[0].subject.isAnonymous).toBe(false);
   });
@@ -292,7 +304,7 @@ describe('unmasking, and the trail it leaves', () => {
   it('reveals the student, and writes an audit entry naming the admin who did it', async () => {
     const { admin, reportId } = await reportedAnonymousGoal();
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/api/admin/reports/${reportId}/unmask`)
       .set(admin.auth)
       .expect(200);
@@ -311,8 +323,8 @@ describe('unmasking, and the trail it leaves', () => {
   it('records every unmask, not just the first', async () => {
     const { admin, reportId } = await reportedAnonymousGoal();
 
-    await request(app).post(`/api/admin/reports/${reportId}/unmask`).set(admin.auth).expect(200);
-    await request(app).post(`/api/admin/reports/${reportId}/unmask`).set(admin.auth).expect(200);
+    await request(server).post(`/api/admin/reports/${reportId}/unmask`).set(admin.auth).expect(200);
+    await request(server).post(`/api/admin/reports/${reportId}/unmask`).set(admin.auth).expect(200);
 
     // Looking twice is looking twice. A log that collapsed repeats would hide how often an
     // identity was pulled up.
@@ -322,20 +334,23 @@ describe('unmasking, and the trail it leaves', () => {
   it('never lets an ordinary student unmask anybody', async () => {
     const { student, reportId } = await reportedAnonymousGoal();
 
-    await request(app).post(`/api/admin/reports/${reportId}/unmask`).set(student.auth).expect(403);
+    await request(server)
+      .post(`/api/admin/reports/${reportId}/unmask`)
+      .set(student.auth)
+      .expect(403);
     expect(await prisma.auditLog.count()).toBe(0);
   });
 
   it('shows the trail to an admin, newest first', async () => {
     const { admin, reportId } = await reportedAnonymousGoal();
-    await request(app).post(`/api/admin/reports/${reportId}/unmask`).set(admin.auth).expect(200);
-    await request(app)
+    await request(server).post(`/api/admin/reports/${reportId}/unmask`).set(admin.auth).expect(200);
+    await request(server)
       .post(`/api/admin/reports/${reportId}/review`)
       .set(admin.auth)
       .send({ status: 'ACTIONED', note: 'Warned the student' })
       .expect(200);
 
-    const res = await request(app).get('/api/admin/audit').set(admin.auth).expect(200);
+    const res = await request(server).get('/api/admin/audit').set(admin.auth).expect(200);
     expect(res.body.entries.map((e: { action: string }) => e.action)).toEqual([
       'REVIEW_REPORT',
       'UNMASK_POSTER',
@@ -346,12 +361,12 @@ describe('unmasking, and the trail it leaves', () => {
   it('closes a report, and refuses to close it twice', async () => {
     const { admin, reportId } = await reportedAnonymousGoal();
 
-    await request(app)
+    await request(server)
       .post(`/api/admin/reports/${reportId}/review`)
       .set(admin.auth)
       .send({ status: 'DISMISSED' })
       .expect(200);
-    await request(app)
+    await request(server)
       .post(`/api/admin/reports/${reportId}/review`)
       .set(admin.auth)
       .send({ status: 'ACTIONED' })
@@ -360,7 +375,7 @@ describe('unmasking, and the trail it leaves', () => {
 
   it('lets a student report again once the first was dealt with', async () => {
     const { student, admin, goal, reportId } = await reportedAnonymousGoal();
-    await request(app)
+    await request(server)
       .post(`/api/admin/reports/${reportId}/review`)
       .set(admin.auth)
       .send({ status: 'DISMISSED' })

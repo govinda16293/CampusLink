@@ -59,6 +59,12 @@ export const LOBBY_STATUS = {
   CANCELLED: 'CANCELLED',
 };
 
+/** Who wrote a chat line: a student, or the app reporting a change. */
+export const MESSAGE_KIND = {
+  USER: 'USER',
+  SYSTEM: 'SYSTEM',
+};
+
 /** User gender — drives the gender-preference filter on goals (proposal §3.3). */
 export const GENDER = {
   MALE: 'MALE',
@@ -198,4 +204,5 @@ export const USER_ROLES = Object.values(USER_ROLE);
 export const REPORT_REASONS = Object.values(REPORT_REASON);
 export const REPORT_STATUSES = Object.values(REPORT_STATUS);
 export const AUDIT_ACTIONS = Object.values(AUDIT_ACTION);
+export const MESSAGE_KINDS = Object.values(MESSAGE_KIND);
 export const BRANCHES = Object.values(BRANCH);

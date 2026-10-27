@@ -10,7 +10,7 @@ import { ReportDialog } from '../components/ReportDialog';
 import { LobbyRoster } from '../components/LobbyRoster';
 import { Avatar } from '../components/ui/Avatar';
 import { Alert } from '../components/ui/Alert';
-import { Button } from '../components/ui/Button';
+import { Button, ButtonLink } from '../components/ui/Button';
 import { CategoryBadge } from '../components/ui/CategoryBadge';
 import { Field } from '../components/ui/Field';
 import {
@@ -487,6 +487,9 @@ export function GoalDetailPage() {
                     {label}
                   </Button>
                 ))}
+                <ButtonLink to={`/goals/${goal.id}/edit`} variant="secondary">
+                  Edit details
+                </ButtonLink>
                 <Button variant="secondary" loading={cancelling} onClick={handleCancel}>
                   Cancel this goal
                 </Button>

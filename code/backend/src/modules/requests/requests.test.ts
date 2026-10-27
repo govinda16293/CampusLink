@@ -1,11 +1,23 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../app.js';
 import { prisma } from '../../db/prisma.js';
 import { resetDatabase, setKnownOtp } from '../../test/helpers.js';
 import { moveRequest, takeSeatIfUnchanged } from './requests.service.js';
 
+/*
+ * One listening server for the whole file, not one per request.
+ *
+ * `request(server)` makes supertest bind a fresh ephemeral server for every single call, and this
+ * suite makes thousands of them. That churn produced an intermittent "socket hang up" on a random
+ * test roughly one run in five — never reproducible for a file on its own. Handing supertest a
+ * server that is already listening reuses one socket for the file instead.
+ */
 const app = createApp();
+const server = app.listen(0);
+afterAll(() => {
+  server.close();
+});
 
 beforeEach(resetDatabase);
 
@@ -16,12 +28,12 @@ async function registerVerifiedUser(
   name = 'Test Student',
   gender?: string,
 ): Promise<Student> {
-  await request(app)
+  await request(server)
     .post('/api/auth/signup')
     .send({ name, email, password: 'correct-horse-1' })
     .expect(201);
   await setKnownOtp(email, '123456');
-  const res = await request(app).post('/api/auth/verify-otp').send({ email, code: '123456' });
+  const res = await request(server).post('/api/auth/verify-otp').send({ email, code: '123456' });
   if (gender) await prisma.user.update({ where: { email }, data: { gender } });
   return { id: res.body.user.id, auth: { Authorization: `Bearer ${res.body.token}` } };
 }
@@ -34,7 +46,7 @@ const GOAL = {
 };
 
 async function postGoal(poster: Student, overrides: Record<string, unknown> = {}) {
-  const res = await request(app)
+  const res = await request(server)
     .post('/api/goals')
     .set(poster.auth)
     .send({ ...GOAL, ...overrides })
@@ -43,10 +55,10 @@ async function postGoal(poster: Student, overrides: Record<string, unknown> = {}
 }
 
 const ask = (student: Student, goalId: string, body: Record<string, unknown> = {}) =>
-  request(app).post(`/api/goals/${goalId}/requests`).set(student.auth).send(body);
+  request(server).post(`/api/goals/${goalId}/requests`).set(student.auth).send(body);
 
 const act = (student: Student, requestId: string, action: 'accept' | 'reject' | 'withdraw') =>
-  request(app).post(`/api/requests/${requestId}/${action}`).set(student.auth);
+  request(server).post(`/api/requests/${requestId}/${action}`).set(student.auth);
 
 describe('POST /api/goals/:id/requests — asking to join', () => {
   it('creates a pending request and reflects it on the goal', async () => {
@@ -61,7 +73,7 @@ describe('POST /api/goals/:id/requests — asking to join', () => {
     expect(res.body.goal.viewerCanRequest).toBe(false);
     expect(res.body.goal.acceptedCount).toBe(0);
 
-    const detail = await request(app).get(`/api/goals/${goal.id}`).set(student.auth).expect(200);
+    const detail = await request(server).get(`/api/goals/${goal.id}`).set(student.auth).expect(200);
     expect(detail.body.goal.viewerRequest.status).toBe('PENDING');
   });
 
@@ -114,7 +126,7 @@ describe('POST /api/goals/:id/requests — asking to join', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
     const student = await registerVerifiedUser('student_be24@thapar.edu');
     const goal = await postGoal(poster);
-    await request(app).delete(`/api/goals/${goal.id}`).set(poster.auth).expect(200);
+    await request(server).delete(`/api/goals/${goal.id}`).set(poster.auth).expect(200);
 
     const res = await ask(student, goal.id).expect(409);
     expect(res.body.error.code).toBe('NOT_OPEN');
@@ -148,7 +160,7 @@ describe('POST /api/goals/:id/requests — asking to join', () => {
   it('answers 404 for a goal that does not exist, and 401 without a session', async () => {
     const student = await registerVerifiedUser('student_be24@thapar.edu');
     await ask(student, 'no-such-goal').expect(404);
-    await request(app).post('/api/goals/anything/requests').send({}).expect(401);
+    await request(server).post('/api/goals/anything/requests').send({}).expect(401);
   });
 });
 
@@ -159,7 +171,7 @@ describe("GET /api/goals/:id/requests — the poster's view", () => {
     const goal = await postGoal(poster);
     await ask(student, goal.id, { message: 'Keen.' }).expect(201);
 
-    const res = await request(app).get(`/api/goals/${goal.id}/requests`).set(poster.auth);
+    const res = await request(server).get(`/api/goals/${goal.id}/requests`).set(poster.auth);
     expect(res.status).toBe(200);
     expect(res.body.requests).toHaveLength(1);
     expect(res.body.requests[0].requester.name).toBe('Student');
@@ -174,8 +186,8 @@ describe("GET /api/goals/:id/requests — the poster's view", () => {
     const goal = await postGoal(poster);
     await ask(student, goal.id).expect(201);
 
-    await request(app).get(`/api/goals/${goal.id}/requests`).set(student.auth).expect(403);
-    await request(app).get(`/api/goals/${goal.id}/requests`).set(outsider.auth).expect(403);
+    await request(server).get(`/api/goals/${goal.id}/requests`).set(student.auth).expect(403);
+    await request(server).get(`/api/goals/${goal.id}/requests`).set(outsider.auth).expect(403);
   });
 });
 
@@ -193,10 +205,10 @@ describe('accepting and declining', () => {
     expect(res.body.goal.spotsLeft).toBe(0);
 
     // A full goal is no longer something to discover...
-    const feed = await request(app).get('/api/goals').set(outsider.auth).expect(200);
+    const feed = await request(server).get('/api/goals').set(outsider.auth).expect(200);
     expect(feed.body.goals.map((g: { id: string }) => g.id)).not.toContain(goal.id);
     // ...but it has not stopped being the poster's to manage.
-    const mine = await request(app).get('/api/goals?mine=true').set(poster.auth).expect(200);
+    const mine = await request(server).get('/api/goals?mine=true').set(poster.auth).expect(200);
     expect(mine.body.goals.map((g: { id: string }) => g.id)).toContain(goal.id);
   });
 
@@ -308,18 +320,18 @@ describe('anonymity and ownership after acceptance', () => {
     const goal = await postGoal(poster, { anonymous: true, headcount: 2 });
     const pending = (await ask(student, goal.id).expect(201)).body.request;
 
-    const before = await request(app).get(`/api/goals/${goal.id}`).set(student.auth).expect(200);
+    const before = await request(server).get(`/api/goals/${goal.id}`).set(student.auth).expect(200);
     expect(before.body.goal.poster.isAnonymous).toBe(true);
     expect(JSON.stringify(before.body)).not.toContain('Hidden Poster');
 
     await act(poster, pending.id, 'accept').expect(200);
 
-    const after = await request(app).get(`/api/goals/${goal.id}`).set(student.auth).expect(200);
+    const after = await request(server).get(`/api/goals/${goal.id}`).set(student.auth).expect(200);
     expect(after.body.goal.poster.isAnonymous).toBe(false);
     expect(after.body.goal.poster.name).toBe('Hidden Poster');
 
     // Still hidden from anyone who was never accepted.
-    const other = await request(app).get(`/api/goals/${goal.id}`).set(outsider.auth).expect(200);
+    const other = await request(server).get(`/api/goals/${goal.id}`).set(outsider.auth).expect(200);
     expect(other.body.goal.poster.isAnonymous).toBe(true);
     expect(JSON.stringify(other.body)).not.toContain('Hidden Poster');
   });
@@ -331,7 +343,7 @@ describe('anonymity and ownership after acceptance', () => {
     const pending = (await ask(student, goal.id).expect(201)).body.request;
     await act(poster, pending.id, 'accept').expect(200);
 
-    const res = await request(app).delete(`/api/goals/${goal.id}`).set(poster.auth).expect(200);
+    const res = await request(server).delete(`/api/goals/${goal.id}`).set(poster.auth).expect(200);
     expect(res.body.goal.status).toBe('CANCELLED');
   });
 });

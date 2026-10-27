@@ -19,6 +19,8 @@ export function toMessageDTO(message: MessageWithSender) {
     id: message.id,
     goalId: message.goalId,
     body: message.body,
+    /** One of MESSAGE_KIND: a student typing, or the app reporting a change to the goal. */
+    kind: message.kind,
     createdAt: message.createdAt.toISOString(),
     sender: toPublicUserDTO(message.sender),
   };

@@ -167,16 +167,24 @@ export function LobbyChat({ goalId, writable }) {
         )}
 
         <ul className="space-y-3">
-          {messages.map((message, index) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              mine={message.sender.id === viewerId}
-              // Consecutive messages from one person share a heading, the way a chat app groups
-              // them — the name on every line makes a short back-and-forth unreadable.
-              grouped={messages[index - 1]?.sender.id === message.sender.id}
-            />
-          ))}
+          {messages.map((message, index) =>
+            message.kind === 'SYSTEM' ? (
+              <SystemLine key={message.id} message={message} />
+            ) : (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                mine={message.sender.id === viewerId}
+                // Consecutive messages from one person share a heading, the way a chat app groups
+                // them — the name on every line makes a short back-and-forth unreadable. A system
+                // line in between breaks the run, so the next speaker is named again.
+                grouped={
+                  messages[index - 1]?.kind !== 'SYSTEM' &&
+                  messages[index - 1]?.sender.id === message.sender.id
+                }
+              />
+            ),
+          )}
         </ul>
       </div>
 
@@ -213,6 +221,23 @@ export function LobbyChat({ goalId, writable }) {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * The app reporting a change to the goal — a new time, so far.
+ *
+ * Centred and unattributed, so it reads as a fact about the plan rather than as something a
+ * person typed. It is still stored as a message, which is what puts it in the history everyone
+ * scrolls back through.
+ */
+function SystemLine({ message }) {
+  return (
+    <li className="flex justify-center py-1">
+      <span className="rounded-full bg-white/55 px-3.5 py-1.5 text-center text-[12px] font-medium text-label-secondary">
+        {message.body}
+      </span>
+    </li>
   );
 }
 

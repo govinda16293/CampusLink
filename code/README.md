@@ -150,7 +150,8 @@ UI → test) and is left runnable and demoable.
 - [x] **Step 9** — Ratings: who turned up, and the reliability score built from it
 - [x] **Step 8** — Trust & safety: report, block, and audit-logged admin unmasking
 
-Next is a UI pass, then deployment. Steps 7, 10 and 11 — notes sharing, matching and metrics —
+Next is a UI pass, then deployment. Editing a posted goal was added after Step 8, when the gap
+turned up in use: there was no way to change a time without destroying the lobby. Steps 7, 10 and 11 — notes sharing, matching and metrics —
 are deferred by the team rather than dropped.
 
 ### Making somebody a moderator
@@ -171,6 +172,13 @@ immediately.
 **The state machine is pure.** Goal, request and lobby transitions live in
 `code/backend/src/domain/` as functions with no database or HTTP dependency, so they can be
 unit-tested exhaustively against illegal transitions, not just the happy path.
+
+**A changed time announces itself.** A poster can edit a goal after posting it — before this,
+fixing a time meant cancelling and reposting, which threw away the lobby and every message in it.
+But people have already agreed to something, so editing is fenced: the headcount cannot drop
+below those already accepted, anonymity cannot be switched on once people have seen who the
+poster is, and a changed time writes a line into the group chat. Without that last one, editing
+would be worse than not having it — somebody turns up at six for a thing that now starts at eight.
 
 **Anonymity is breakable, but never quietly.** A moderator's report queue does not show who is
 behind an anonymous goal — moderation does not need the name, so doing the job never hands one

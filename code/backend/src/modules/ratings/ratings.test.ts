@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../app.js';
 import { prisma } from '../../db/prisma.js';
@@ -13,24 +13,36 @@ import { resetDatabase, setKnownOtp } from '../../test/helpers.js';
  * score on a profile really does follow from the votes rather than from whoever shouted last.
  */
 
+/*
+ * One listening server for the whole file, not one per request.
+ *
+ * `request(server)` makes supertest bind a fresh ephemeral server for every single call, and this
+ * suite makes thousands of them. That churn produced an intermittent "socket hang up" on a random
+ * test roughly one run in five — never reproducible for a file on its own. Handing supertest a
+ * server that is already listening reuses one socket for the file instead.
+ */
 const app = createApp();
+const server = app.listen(0);
+afterAll(() => {
+  server.close();
+});
 
 beforeEach(resetDatabase);
 
 type Student = { id: string; auth: { Authorization: string } };
 
 async function registerVerifiedUser(email: string, name = 'Test Student'): Promise<Student> {
-  await request(app)
+  await request(server)
     .post('/api/auth/signup')
     .send({ name, email, password: 'correct-horse-1' })
     .expect(201);
   await setKnownOtp(email, '123456');
-  const res = await request(app).post('/api/auth/verify-otp').send({ email, code: '123456' });
+  const res = await request(server).post('/api/auth/verify-otp').send({ email, code: '123456' });
   return { id: res.body.user.id, auth: { Authorization: `Bearer ${res.body.token}` } };
 }
 
 async function postGoal(poster: Student, headcount = 3) {
-  const res = await request(app)
+  const res = await request(server)
     .post('/api/goals')
     .set(poster.auth)
     .send({
@@ -44,12 +56,12 @@ async function postGoal(poster: Student, headcount = 3) {
 }
 
 async function join(student: Student, poster: Student, goalId: string) {
-  const asked = await request(app)
+  const asked = await request(server)
     .post(`/api/goals/${goalId}/requests`)
     .set(student.auth)
     .send({})
     .expect(201);
-  await request(app)
+  await request(server)
     .post(`/api/requests/${asked.body.request.id}/accept`)
     .set(poster.auth)
     .expect(200);
@@ -57,15 +69,15 @@ async function join(student: Student, poster: Student, goalId: string) {
 }
 
 async function finish(poster: Student, goalId: string) {
-  await request(app).post(`/api/goals/${goalId}/close`).set(poster.auth).expect(200);
-  await request(app).post(`/api/goals/${goalId}/complete`).set(poster.auth).expect(200);
+  await request(server).post(`/api/goals/${goalId}/close`).set(poster.auth).expect(200);
+  await request(server).post(`/api/goals/${goalId}/complete`).set(poster.auth).expect(200);
 }
 
 const rate = (rater: Student, goalId: string, ratings: unknown) =>
-  request(app).post(`/api/goals/${goalId}/ratings`).set(rater.auth).send({ ratings });
+  request(server).post(`/api/goals/${goalId}/ratings`).set(rater.auth).send({ ratings });
 
 const summary = (viewer: Student, goalId: string) =>
-  request(app).get(`/api/goals/${goalId}/ratings`).set(viewer.auth);
+  request(server).get(`/api/goals/${goalId}/ratings`).set(viewer.auth);
 
 const scoreOf = async (student: Student) =>
   (await prisma.user.findUniqueOrThrow({ where: { id: student.id } })).reliabilityScore;
@@ -162,7 +174,7 @@ describe('who may answer', () => {
     await join(member, poster, goal.id);
     await finish(poster, goal.id);
 
-    await request(app)
+    await request(server)
       .post(`/api/goals/${goal.id}/ratings`)
       .set(member.auth)
       .send({ ratings: [{ subjectId: poster.id, attended: false, raterId: poster.id }] })
@@ -303,7 +315,10 @@ describe('the score that comes out', () => {
     await finish(poster, goal.id);
     await rate(poster, goal.id, [{ subjectId: member.id, attended: false }]).expect(201);
 
-    const profile = await request(app).get(`/api/users/${member.id}`).set(poster.auth).expect(200);
+    const profile = await request(server)
+      .get(`/api/users/${member.id}`)
+      .set(poster.auth)
+      .expect(200);
     expect(profile.body.user.reliabilityScore).toBe(80);
   });
 });
@@ -349,7 +364,7 @@ describe('the summary a student is shown', () => {
     const quitter = await registerVerifiedUser('quitter_be24@thapar.edu');
     const goal = await postGoal(poster);
     const requestId = await join(quitter, poster, goal.id);
-    await request(app).post(`/api/requests/${requestId}/withdraw`).set(quitter.auth).expect(200);
+    await request(server).post(`/api/requests/${requestId}/withdraw`).set(quitter.auth).expect(200);
     await finish(poster, goal.id);
 
     const after = await prisma.user.findUniqueOrThrow({ where: { id: quitter.id } });

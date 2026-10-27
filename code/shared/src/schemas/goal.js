@@ -56,6 +56,21 @@ export const createGoalSchema = z.object({
 });
 
 /**
+ * Editing a goal that is already posted.
+ *
+ * Every field optional, because a poster fixing a time should not have to resend a description
+ * they did not touch. The rules themselves are the create rules — reused rather than restated, so
+ * a title that would be rejected when posting cannot be smuggled in by editing afterwards.
+ *
+ * `status` and `acceptedCount` are deliberately absent, as is anything else the poster does not
+ * own: the lifecycle moves through its own endpoints, and `.strict()` refuses a body that tries.
+ */
+export const updateGoalSchema = createGoalSchema
+  .partial()
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, 'Nothing to change');
+
+/**
  * Feed query parameters.
  *
  * `cursor` is the id of the last goal already shown. Cursor pagination rather than offset,

@@ -1,20 +1,32 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../app.js';
 import { prisma } from '../../db/prisma.js';
 import { resetDatabase, setKnownOtp } from '../../test/helpers.js';
 
+/*
+ * One listening server for the whole file, not one per request.
+ *
+ * `request(server)` makes supertest bind a fresh ephemeral server for every single call, and this
+ * suite makes thousands of them. That churn produced an intermittent "socket hang up" on a random
+ * test roughly one run in five — never reproducible for a file on its own. Handing supertest a
+ * server that is already listening reuses one socket for the file instead.
+ */
 const app = createApp();
+const server = app.listen(0);
+afterAll(() => {
+  server.close();
+});
 
 beforeEach(resetDatabase);
 
 async function registerVerifiedUser(email: string, name = 'Test Student') {
-  await request(app)
+  await request(server)
     .post('/api/auth/signup')
     .send({ name, email, password: 'correct-horse-1' })
     .expect(201);
   await setKnownOtp(email, '123456');
-  const res = await request(app).post('/api/auth/verify-otp').send({ email, code: '123456' });
+  const res = await request(server).post('/api/auth/verify-otp').send({ email, code: '123456' });
   return {
     token: res.body.token as string,
     user: res.body.user,
@@ -32,7 +44,7 @@ const GOAL = {
 describe('POST /api/goals', () => {
   it('creates a goal and returns it', async () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
-    const res = await request(app).post('/api/goals').set(poster.auth).send(GOAL).expect(201);
+    const res = await request(server).post('/api/goals').set(poster.auth).send(GOAL).expect(201);
 
     expect(res.body.goal.title).toBe(GOAL.title);
     expect(res.body.goal.spotsLeft).toBe(1);
@@ -43,7 +55,7 @@ describe('POST /api/goals', () => {
   it('gives an undated goal a 48-hour expiry', async () => {
     // Otherwise "whenever" goals accumulate on the feed forever and drag the fulfilment metric.
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
-    const res = await request(app).post('/api/goals').set(poster.auth).send(GOAL).expect(201);
+    const res = await request(server).post('/api/goals').set(poster.auth).send(GOAL).expect(201);
 
     const hours = (new Date(res.body.goal.expiresAt).getTime() - Date.now()) / 3_600_000;
     expect(hours).toBeGreaterThan(47);
@@ -52,7 +64,7 @@ describe('POST /api/goals', () => {
 
   it('rejects a goal scheduled in the past', async () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
-    await request(app)
+    await request(server)
       .post('/api/goals')
       .set(poster.auth)
       .send({ ...GOAL, dateTime: new Date(Date.now() - 86_400_000).toISOString() })
@@ -61,12 +73,12 @@ describe('POST /api/goals', () => {
 
   it('rejects an unknown category and a zero headcount', async () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
-    await request(app)
+    await request(server)
       .post('/api/goals')
       .set(poster.auth)
       .send({ ...GOAL, category: 'PARTY' })
       .expect(400);
-    await request(app)
+    await request(server)
       .post('/api/goals')
       .set(poster.auth)
       .send({ ...GOAL, headcount: 0 })
@@ -74,7 +86,7 @@ describe('POST /api/goals', () => {
   });
 
   it('requires authentication', async () => {
-    await request(app).post('/api/goals').send(GOAL).expect(401);
+    await request(server).post('/api/goals').send(GOAL).expect(401);
   });
 });
 
@@ -87,13 +99,13 @@ describe('anonymous posting', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu', 'Anon Poster');
     const viewer = await registerVerifiedUser('viewer_be24@thapar.edu', 'Curious Viewer');
 
-    await request(app)
+    await request(server)
       .post('/api/goals')
       .set(poster.auth)
       .send({ ...GOAL, anonymous: true })
       .expect(201);
 
-    const res = await request(app).get('/api/goals').set(viewer.auth).expect(200);
+    const res = await request(server).get('/api/goals').set(viewer.auth).expect(200);
     const [goal] = res.body.goals;
 
     expect(goal.poster.isAnonymous).toBe(true);
@@ -113,12 +125,12 @@ describe('anonymous posting', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu', 'Anon Poster');
     const viewer = await registerVerifiedUser('viewer_be24@thapar.edu');
 
-    await request(app)
+    await request(server)
       .post('/api/goals')
       .set(poster.auth)
       .send({ ...GOAL, anonymous: true })
       .expect(201);
-    const res = await request(app).get('/api/goals').set(viewer.auth).expect(200);
+    const res = await request(server).get('/api/goals').set(viewer.auth).expect(200);
 
     expect(res.body.goals[0].poster.reliabilityScore).toBe(100);
     expect(res.body.goals[0].poster.goalsCompleted).toBe(0);
@@ -126,13 +138,13 @@ describe('anonymous posting', () => {
 
   it('shows the poster their own identity on their own anonymous goal', async () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu', 'Anon Poster');
-    await request(app)
+    await request(server)
       .post('/api/goals')
       .set(poster.auth)
       .send({ ...GOAL, anonymous: true })
       .expect(201);
 
-    const res = await request(app).get('/api/goals').set(poster.auth).expect(200);
+    const res = await request(server).get('/api/goals').set(poster.auth).expect(200);
     expect(res.body.goals[0].poster.isAnonymous).toBe(false);
     expect(res.body.goals[0].poster.name).toBe('Anon Poster');
   });
@@ -143,13 +155,13 @@ describe('anonymous posting', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu', 'Anon Poster');
     const viewer = await registerVerifiedUser('viewer_be24@thapar.edu');
 
-    const created = await request(app)
+    const created = await request(server)
       .post('/api/goals')
       .set(poster.auth)
       .send({ ...GOAL, anonymous: true })
       .expect(201);
 
-    const res = await request(app)
+    const res = await request(server)
       .get(`/api/goals/${created.body.goal.id}`)
       .set(viewer.auth)
       .expect(200);
@@ -162,8 +174,8 @@ describe('anonymous posting', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu', 'Open Poster');
     const viewer = await registerVerifiedUser('viewer_be24@thapar.edu');
 
-    await request(app).post('/api/goals').set(poster.auth).send(GOAL).expect(201);
-    const res = await request(app).get('/api/goals').set(viewer.auth).expect(200);
+    await request(server).post('/api/goals').set(poster.auth).send(GOAL).expect(201);
+    const res = await request(server).get('/api/goals').set(viewer.auth).expect(200);
 
     expect(res.body.goals[0].poster.isAnonymous).toBe(false);
     expect(res.body.goals[0].poster.name).toBe('Open Poster');
@@ -178,7 +190,7 @@ describe('GET /api/goals — the feed', () => {
     goals: Array<Partial<typeof GOAL> & Record<string, unknown>>,
   ) {
     for (const goal of goals) {
-      await request(app)
+      await request(server)
         .post('/api/goals')
         .set(auth)
         .send({ ...GOAL, ...goal })
@@ -190,7 +202,7 @@ describe('GET /api/goals — the feed', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
     await seed(poster.auth, [{ title: 'First goal here' }, { title: 'Second goal here' }]);
 
-    const res = await request(app).get('/api/goals').set(poster.auth).expect(200);
+    const res = await request(server).get('/api/goals').set(poster.auth).expect(200);
     expect(res.body.goals.map((g: { title: string }) => g.title)).toEqual([
       'Second goal here',
       'First goal here',
@@ -201,7 +213,7 @@ describe('GET /api/goals — the feed', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
     await seed(poster.auth, [{ category: 'GYM' }, { category: 'STUDY' }, { category: 'STUDY' }]);
 
-    const res = await request(app).get('/api/goals?category=STUDY').set(poster.auth).expect(200);
+    const res = await request(server).get('/api/goals?category=STUDY').set(poster.auth).expect(200);
     expect(res.body.goals).toHaveLength(2);
     expect(res.body.goals.every((g: { category: string }) => g.category === 'STUDY')).toBe(true);
   });
@@ -213,11 +225,11 @@ describe('GET /api/goals — the feed', () => {
       Array.from({ length: 5 }, (_, i) => ({ title: `Goal number ${i}` })),
     );
 
-    const first = await request(app).get('/api/goals?limit=2').set(poster.auth).expect(200);
+    const first = await request(server).get('/api/goals?limit=2').set(poster.auth).expect(200);
     expect(first.body.goals).toHaveLength(2);
     expect(first.body.nextCursor).toBeTruthy();
 
-    const second = await request(app)
+    const second = await request(server)
       .get(`/api/goals?limit=2&cursor=${first.body.nextCursor}`)
       .set(poster.auth)
       .expect(200);
@@ -229,14 +241,18 @@ describe('GET /api/goals — the feed', () => {
 
   it('hides expired goals even before the archiving job has run', async () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
-    const created = await request(app).post('/api/goals').set(poster.auth).send(GOAL).expect(201);
+    const created = await request(server)
+      .post('/api/goals')
+      .set(poster.auth)
+      .send(GOAL)
+      .expect(201);
 
     await prisma.goal.update({
       where: { id: created.body.goal.id },
       data: { expiresAt: new Date(Date.now() - 1000) },
     });
 
-    const res = await request(app).get('/api/goals').set(poster.auth).expect(200);
+    const res = await request(server).get('/api/goals').set(poster.auth).expect(200);
     expect(res.body.goals).toHaveLength(0);
   });
 
@@ -246,24 +262,28 @@ describe('GET /api/goals — the feed', () => {
     await seed(mine.auth, [{ title: 'My own goal here' }]);
     await seed(other.auth, [{ title: 'Someone elses goal' }]);
 
-    const res = await request(app).get('/api/goals?mine=true').set(mine.auth).expect(200);
+    const res = await request(server).get('/api/goals?mine=true').set(mine.auth).expect(200);
     expect(res.body.goals).toHaveLength(1);
     expect(res.body.goals[0].title).toBe('My own goal here');
   });
 
   it('requires authentication', async () => {
-    await request(app).get('/api/goals').expect(401);
+    await request(server).get('/api/goals').expect(401);
   });
 });
 
 describe('DELETE /api/goals/:id', () => {
   it('lets the poster cancel, and drops it from the feed', async () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
-    const created = await request(app).post('/api/goals').set(poster.auth).send(GOAL).expect(201);
+    const created = await request(server)
+      .post('/api/goals')
+      .set(poster.auth)
+      .send(GOAL)
+      .expect(201);
 
-    await request(app).delete(`/api/goals/${created.body.goal.id}`).set(poster.auth).expect(200);
+    await request(server).delete(`/api/goals/${created.body.goal.id}`).set(poster.auth).expect(200);
 
-    const feed = await request(app).get('/api/goals').set(poster.auth).expect(200);
+    const feed = await request(server).get('/api/goals').set(poster.auth).expect(200);
     expect(feed.body.goals).toHaveLength(0);
 
     // The row survives, because Step 11's fulfilment metric needs to know how it ended.
@@ -273,8 +293,12 @@ describe('DELETE /api/goals/:id', () => {
   it('refuses to let another student cancel your goal', async () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
     const other = await registerVerifiedUser('other_be24@thapar.edu');
-    const created = await request(app).post('/api/goals').set(poster.auth).send(GOAL).expect(201);
+    const created = await request(server)
+      .post('/api/goals')
+      .set(poster.auth)
+      .send(GOAL)
+      .expect(201);
 
-    await request(app).delete(`/api/goals/${created.body.goal.id}`).set(other.auth).expect(403);
+    await request(server).delete(`/api/goals/${created.body.goal.id}`).set(other.auth).expect(403);
   });
 });

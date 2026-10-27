@@ -4,19 +4,24 @@ import {
   GOAL_STATUS,
   REQUEST_STATUS,
   UNDATED_GOAL_TTL_HOURS,
+  MESSAGE_KIND,
   type createGoalSchema,
   type feedQuerySchema,
+  type updateGoalSchema,
 } from '@campuslink/shared';
 import { prisma } from '../../db/prisma.js';
 import { AppError } from '../../lib/AppError.js';
 import { canViewLobby, nextGoalStatus, type GoalAction } from '../../domain/goal.js';
 import { toGoalDTO, type GoalViewerContext } from '../../serializers/goal.serializer.js';
 import { toLobbyDTO } from '../../serializers/lobby.serializer.js';
+import { toMessageDTO } from '../../serializers/message.serializer.js';
+import { publish } from '../../realtime/bus.js';
 import { recomputeLobbyReliability } from '../ratings/ratings.service.js';
 import { blockedUserIds } from '../safety/blocks.service.js';
 
 type CreateGoalInput = z.infer<typeof createGoalSchema>;
 type FeedQuery = z.infer<typeof feedQuerySchema>;
+type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
 
 /**
  * When a goal stops accepting requests.
@@ -198,6 +203,120 @@ export async function listGoals(viewerId: string, query: FeedQuery) {
     goals: page.map((goal) => toGoalDTO(goal, contextFor(goal.id))),
     nextCursor: hasMore ? (page[page.length - 1]?.id ?? null) : null,
   };
+}
+
+/**
+ * How a changed time is written into the lobby chat.
+ *
+ * Formatted on the server in the campus timezone rather than the viewer's, and written into the
+ * message body as plain text at the moment it happens. A chat line is a record of what was said
+ * then — re-deriving it per reader from a stored timestamp would let the same line read
+ * differently to two people in the same group, which is the one thing a shared record must not do.
+ */
+const CAMPUS_TIME_ZONE = 'Asia/Kolkata';
+
+function describeWhen(dateTime: Date | null): string {
+  if (!dateTime) return 'no fixed time (whenever)';
+  return new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: CAMPUS_TIME_ZONE,
+  }).format(dateTime);
+}
+
+/**
+ * Edits a goal that is already posted.
+ *
+ * The reason this exists at all: without it, fixing a time meant cancelling and reposting, which
+ * threw away the lobby and the whole conversation in it.
+ *
+ * The hard part is not the update, it is that **people have already agreed to something**. Three
+ * rules follow from that, and each one exists because of a way this could quietly hurt somebody
+ * who had already committed:
+ *
+ *   1. A changed time is announced in the group chat. Silently moving a goal people had joined
+ *      is how somebody turns up at six for a thing that now starts at eight. They find out where
+ *      they are already looking, and they can leave if it no longer suits.
+ *   2. Headcount cannot drop below the people already accepted. There is no honest way to pick
+ *      which of them stops being in.
+ *   3. Anonymity cannot be switched on once anybody is in. They have already seen who the poster
+ *      is, so hiding the name afterwards would tell new readers something untrue.
+ */
+export async function updateGoal(viewerId: string, goalId: string, input: UpdateGoalInput) {
+  const goal = await prisma.goal.findUnique({ where: { id: goalId } });
+  if (!goal) throw AppError.notFound('That goal does not exist');
+  if (goal.posterId !== viewerId) throw AppError.forbidden('That is not your goal to edit');
+
+  // A finished or abandoned goal is a record of what happened, not a draft.
+  const editable: string[] = [GOAL_STATUS.OPEN, GOAL_STATUS.FULL, GOAL_STATUS.CLOSED];
+  if (!editable.includes(goal.status)) {
+    throw AppError.conflict(`A ${goal.status.toLowerCase()} goal cannot be edited.`);
+  }
+
+  if (input.headcount !== undefined && input.headcount < goal.acceptedCount) {
+    throw AppError.badRequest(
+      `${goal.acceptedCount} ${goal.acceptedCount === 1 ? 'person has' : 'people have'} already joined, so you cannot ask for fewer than that.`,
+    );
+  }
+
+  if (input.anonymous === true && !goal.anonymous && goal.acceptedCount > 0) {
+    throw AppError.badRequest(
+      'People have already joined and seen who you are, so this cannot be made anonymous now.',
+    );
+  }
+
+  const nextDateTime =
+    input.dateTime === undefined ? goal.dateTime : input.dateTime ? new Date(input.dateTime) : null;
+  const timeChanged = nextDateTime?.getTime() !== goal.dateTime?.getTime();
+
+  // Capacity and the OPEN/FULL split are two views of one fact, so raising the headcount has to
+  // reopen a goal that had filled, and lowering it onto the current count has to close it.
+  const headcount = input.headcount ?? goal.headcount;
+  let status = goal.status;
+  if (goal.status === GOAL_STATUS.FULL && goal.acceptedCount < headcount) {
+    status = GOAL_STATUS.OPEN;
+  } else if (goal.status === GOAL_STATUS.OPEN && goal.acceptedCount >= headcount) {
+    status = GOAL_STATUS.FULL;
+  }
+
+  const updated = await prisma.goal.update({
+    where: { id: goalId },
+    data: {
+      ...(input.category !== undefined ? { category: input.category } : {}),
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.genderPreference !== undefined ? { genderPreference: input.genderPreference } : {}),
+      ...(input.autoAccept !== undefined ? { autoAccept: input.autoAccept } : {}),
+      ...(input.anonymous !== undefined ? { anonymous: input.anonymous } : {}),
+      headcount,
+      status,
+      dateTime: nextDateTime,
+      // The expiry follows the time, or falls back to the 48-hour window for a whenever goal.
+      ...(timeChanged ? { expiresAt: expiryFor(nextDateTime) } : {}),
+    },
+    include: { poster: true },
+  });
+
+  // Only worth saying when there is somebody to say it to.
+  if (timeChanged && goal.acceptedCount > 0) {
+    const message = await prisma.message.create({
+      data: {
+        goalId,
+        senderId: viewerId,
+        kind: MESSAGE_KIND.SYSTEM,
+        body: `The time changed to ${describeWhen(nextDateTime)}.`,
+      },
+      include: { sender: true },
+    });
+    publish(goalId, 'message:new', { message: toMessageDTO(message) });
+  }
+
+  const contextFor = await viewerContextFor(viewerId, [goalId]);
+  return toGoalDTO(updated, contextFor(goalId));
 }
 
 export async function getGoal(viewerId: string, goalId: string) {

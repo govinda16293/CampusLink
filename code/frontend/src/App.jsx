@@ -9,6 +9,7 @@ import { LoginPage } from './pages/LoginPage';
 import { FeedPage } from './pages/FeedPage';
 import { CreateGoalPage } from './pages/CreateGoalPage';
 import { GoalDetailPage } from './pages/GoalDetailPage';
+import { EditGoalPage } from './pages/EditGoalPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { EditProfilePage } from './pages/EditProfilePage';
 import { AdminPage } from './pages/AdminPage';
@@ -36,6 +37,8 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<FeedPage />} />
           <Route path="/goals/new" element={<CreateGoalPage />} />
+          {/* Declared before /goals/:id so "new" is never captured as a goal id. */}
+          <Route path="/goals/:id/edit" element={<EditGoalPage />} />
           <Route path="/goals/:id" element={<GoalDetailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/edit" element={<EditProfilePage />} />

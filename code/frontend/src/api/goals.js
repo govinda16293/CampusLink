@@ -10,6 +10,8 @@ export const goalsApi = {
     return api.get(`/goals${query ? `?${query}` : ''}`);
   },
   byId: (id) => api.get(`/goals/${id}`),
+  /** Edit a posted goal. Only the fields that changed need to be sent. */
+  update: (id, payload) => api.patch(`/goals/${id}`, payload),
   cancel: (id) => api.delete(`/goals/${id}`),
 
   /**

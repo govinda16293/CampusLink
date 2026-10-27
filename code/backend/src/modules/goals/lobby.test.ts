@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../app.js';
 import { prisma } from '../../db/prisma.js';
@@ -13,19 +13,31 @@ import { moveGoal } from './goals.service.js';
  * driven anywhere the state machine forbids. The rest follows from those.
  */
 
+/*
+ * One listening server for the whole file, not one per request.
+ *
+ * `request(server)` makes supertest bind a fresh ephemeral server for every single call, and this
+ * suite makes thousands of them. That churn produced an intermittent "socket hang up" on a random
+ * test roughly one run in five — never reproducible for a file on its own. Handing supertest a
+ * server that is already listening reuses one socket for the file instead.
+ */
 const app = createApp();
+const server = app.listen(0);
+afterAll(() => {
+  server.close();
+});
 
 beforeEach(resetDatabase);
 
 type Student = { id: string; auth: { Authorization: string } };
 
 async function registerVerifiedUser(email: string, name = 'Test Student'): Promise<Student> {
-  await request(app)
+  await request(server)
     .post('/api/auth/signup')
     .send({ name, email, password: 'correct-horse-1' })
     .expect(201);
   await setKnownOtp(email, '123456');
-  const res = await request(app).post('/api/auth/verify-otp').send({ email, code: '123456' });
+  const res = await request(server).post('/api/auth/verify-otp').send({ email, code: '123456' });
   return { id: res.body.user.id, auth: { Authorization: `Bearer ${res.body.token}` } };
 }
 
@@ -37,7 +49,7 @@ const GOAL = {
 };
 
 async function postGoal(poster: Student, overrides: Record<string, unknown> = {}) {
-  const res = await request(app)
+  const res = await request(server)
     .post('/api/goals')
     .set(poster.auth)
     .send({ ...GOAL, ...overrides })
@@ -47,12 +59,12 @@ async function postGoal(poster: Student, overrides: Record<string, unknown> = {}
 
 /** Puts a student in the group the way the product does: they ask, the poster accepts. */
 async function join(student: Student, poster: Student, goalId: string) {
-  const asked = await request(app)
+  const asked = await request(server)
     .post(`/api/goals/${goalId}/requests`)
     .set(student.auth)
     .send({})
     .expect(201);
-  await request(app)
+  await request(server)
     .post(`/api/requests/${asked.body.request.id}/accept`)
     .set(poster.auth)
     .expect(200);
@@ -60,10 +72,10 @@ async function join(student: Student, poster: Student, goalId: string) {
 }
 
 const lobby = (student: Student, goalId: string) =>
-  request(app).get(`/api/goals/${goalId}/lobby`).set(student.auth);
+  request(server).get(`/api/goals/${goalId}/lobby`).set(student.auth);
 
 const move = (student: Student, goalId: string, action: string) =>
-  request(app).post(`/api/goals/${goalId}/${action}`).set(student.auth);
+  request(server).post(`/api/goals/${goalId}/${action}`).set(student.auth);
 
 describe('GET /api/goals/:id/lobby — who may see the roster', () => {
   it('shows the poster their own lobby, with everyone who was accepted', async () => {
@@ -97,7 +109,7 @@ describe('GET /api/goals/:id/lobby — who may see the roster', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
     const waiting = await registerVerifiedUser('waiting_be24@thapar.edu');
     const goal = await postGoal(poster);
-    await request(app)
+    await request(server)
       .post(`/api/goals/${goal.id}/requests`)
       .set(waiting.auth)
       .send({})
@@ -124,7 +136,7 @@ describe('GET /api/goals/:id/lobby — who may see the roster', () => {
     const requestId = await join(member, poster, goal.id);
     await lobby(member, goal.id).expect(200);
 
-    await request(app).post(`/api/requests/${requestId}/withdraw`).set(member.auth).expect(200);
+    await request(server).post(`/api/requests/${requestId}/withdraw`).set(member.auth).expect(200);
     await lobby(member, goal.id).expect(404);
   });
 
@@ -163,7 +175,7 @@ describe('the goal lifecycle — confirm, complete, reopen', () => {
     expect(res.body.goal.status).toBe('CLOSED');
     expect(res.body.goal.lobbyStatus).toBe('CONFIRMED');
 
-    const refused = await request(app)
+    const refused = await request(server)
       .post(`/api/goals/${goal.id}/requests`)
       .set(latecomer.auth)
       .send({})
@@ -175,7 +187,7 @@ describe('the goal lifecycle — confirm, complete, reopen', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
     const waiting = await registerVerifiedUser('waiting_be24@thapar.edu');
     const goal = await postGoal(poster, { headcount: 3 });
-    const asked = await request(app)
+    const asked = await request(server)
       .post(`/api/goals/${goal.id}/requests`)
       .set(waiting.auth)
       .send({})
@@ -213,7 +225,7 @@ describe('the goal lifecycle — confirm, complete, reopen', () => {
     const quitter = await registerVerifiedUser('quitter_be24@thapar.edu');
     const goal = await postGoal(poster);
     const requestId = await join(quitter, poster, goal.id);
-    await request(app).post(`/api/requests/${requestId}/withdraw`).set(quitter.auth).expect(200);
+    await request(server).post(`/api/requests/${requestId}/withdraw`).set(quitter.auth).expect(200);
 
     await move(poster, goal.id, 'close').expect(200);
     await move(poster, goal.id, 'complete').expect(200);
@@ -252,7 +264,7 @@ describe('the goal lifecycle — confirm, complete, reopen', () => {
     await move(poster, goal.id, 'close').expect(200);
     await move(poster, goal.id, 'complete').expect(200);
 
-    const res = await request(app)
+    const res = await request(server)
       .post(`/api/requests/${requestId}/withdraw`)
       .set(member.auth)
       .expect(409);
@@ -273,7 +285,7 @@ describe('the goal lifecycle — confirm, complete, reopen', () => {
     await move(poster, goal.id, 'close').expect(200);
 
     // Plans change between confirming and the day itself, and the poster needs to know.
-    await request(app).post(`/api/requests/${requestId}/withdraw`).set(member.auth).expect(200);
+    await request(server).post(`/api/requests/${requestId}/withdraw`).set(member.auth).expect(200);
     const after = await prisma.goal.findUniqueOrThrow({ where: { id: goal.id } });
     expect(after.acceptedCount).toBe(0);
   });
@@ -296,7 +308,7 @@ describe('the goal lifecycle — confirm, complete, reopen', () => {
     const goal = await postGoal(poster, { headcount: 1 });
     const requestId = await join(member, poster, goal.id);
     await move(poster, goal.id, 'close').expect(200);
-    await request(app).post(`/api/requests/${requestId}/withdraw`).set(member.auth).expect(200);
+    await request(server).post(`/api/requests/${requestId}/withdraw`).set(member.auth).expect(200);
 
     const res = await move(poster, goal.id, 'reopen').expect(200);
     expect(res.body.goal.status).toBe('OPEN');
@@ -311,7 +323,7 @@ describe('the goal lifecycle — confirm, complete, reopen', () => {
     for (const action of ['close', 'complete', 'reopen']) {
       await move(member, goal.id, action).expect(403);
     }
-    await request(app).delete(`/api/goals/${goal.id}`).set(member.auth).expect(403);
+    await request(server).delete(`/api/goals/${goal.id}`).set(member.auth).expect(403);
   });
 
   it('still lets a confirmed goal be called off', async () => {
@@ -319,7 +331,7 @@ describe('the goal lifecycle — confirm, complete, reopen', () => {
     const goal = await postGoal(poster);
     await move(poster, goal.id, 'close').expect(200);
 
-    await request(app).delete(`/api/goals/${goal.id}`).set(poster.auth).expect(200);
+    await request(server).delete(`/api/goals/${goal.id}`).set(poster.auth).expect(200);
     const after = await prisma.goal.findUniqueOrThrow({ where: { id: goal.id } });
     expect(after.status).toBe('CANCELLED');
   });
@@ -370,13 +382,13 @@ describe('GET /api/goals?joined=true — the goals you are in', () => {
     const joinedGoal = await postGoal(poster, { title: 'The one I am in' });
     const askedGoal = await postGoal(poster, { title: 'The one I only asked about' });
     await join(member, poster, joinedGoal.id);
-    await request(app)
+    await request(server)
       .post(`/api/goals/${askedGoal.id}/requests`)
       .set(member.auth)
       .send({})
       .expect(201);
 
-    const res = await request(app).get('/api/goals?joined=true').set(member.auth).expect(200);
+    const res = await request(server).get('/api/goals?joined=true').set(member.auth).expect(200);
     expect(res.body.goals.map((g: { title: string }) => g.title)).toEqual(['The one I am in']);
   });
 
@@ -384,7 +396,7 @@ describe('GET /api/goals?joined=true — the goals you are in', () => {
     const poster = await registerVerifiedUser('poster_be24@thapar.edu');
     await postGoal(poster);
 
-    const res = await request(app).get('/api/goals?joined=true').set(poster.auth).expect(200);
+    const res = await request(server).get('/api/goals?joined=true').set(poster.auth).expect(200);
     expect(res.body.goals).toEqual([]);
   });
 
@@ -401,10 +413,10 @@ describe('GET /api/goals?joined=true — the goals you are in', () => {
       data: { expiresAt: new Date(Date.now() - 60_000) },
     });
 
-    const feed = await request(app).get('/api/goals').set(member.auth).expect(200);
+    const feed = await request(server).get('/api/goals').set(member.auth).expect(200);
     expect(feed.body.goals).toEqual([]);
 
-    const joinedList = await request(app)
+    const joinedList = await request(server)
       .get('/api/goals?joined=true')
       .set(member.auth)
       .expect(200);
@@ -417,8 +429,8 @@ describe('GET /api/goals?joined=true — the goals you are in', () => {
     const goal = await postGoal(poster);
     const requestId = await join(member, poster, goal.id);
 
-    await request(app).post(`/api/requests/${requestId}/withdraw`).set(member.auth).expect(200);
-    const res = await request(app).get('/api/goals?joined=true').set(member.auth).expect(200);
+    await request(server).post(`/api/requests/${requestId}/withdraw`).set(member.auth).expect(200);
+    const res = await request(server).get('/api/goals?joined=true').set(member.auth).expect(200);
     expect(res.body.goals).toEqual([]);
   });
 });
@@ -429,15 +441,15 @@ describe('pendingRequestCount — the badge on a poster’s own card', () => {
     const one = await registerVerifiedUser('one_be24@thapar.edu');
     const two = await registerVerifiedUser('two_be24@thapar.edu');
     const goal = await postGoal(poster, { headcount: 3 });
-    await request(app).post(`/api/goals/${goal.id}/requests`).set(one.auth).send({}).expect(201);
-    await request(app).post(`/api/goals/${goal.id}/requests`).set(two.auth).send({}).expect(201);
+    await request(server).post(`/api/goals/${goal.id}/requests`).set(one.auth).send({}).expect(201);
+    await request(server).post(`/api/goals/${goal.id}/requests`).set(two.auth).send({}).expect(201);
 
-    const mine = await request(app).get('/api/goals?mine=true').set(poster.auth).expect(200);
+    const mine = await request(server).get('/api/goals?mine=true').set(poster.auth).expect(200);
     expect(mine.body.goals[0].pendingRequestCount).toBe(2);
 
     // Nobody else learns how many people want in — the query is scoped to goals you posted, so
     // there is no number here to withhold in the first place.
-    const theirs = await request(app).get('/api/goals').set(one.auth).expect(200);
+    const theirs = await request(server).get('/api/goals').set(one.auth).expect(200);
     expect(theirs.body.goals[0].pendingRequestCount).toBeNull();
   });
 
@@ -447,8 +459,171 @@ describe('pendingRequestCount — the badge on a poster’s own card', () => {
     const goal = await postGoal(poster);
     await join(member, poster, goal.id);
 
-    const res = await request(app).get(`/api/goals/${goal.id}`).set(poster.auth).expect(200);
+    const res = await request(server).get(`/api/goals/${goal.id}`).set(poster.auth).expect(200);
     expect(res.body.goal.pendingRequestCount).toBe(0);
     expect(res.body.goal.viewerIsMember).toBe(true);
+  });
+});
+
+describe('PATCH /api/goals/:id — editing a goal that is already posted', () => {
+  const edit = (student: Student, goalId: string, body: Record<string, unknown>) =>
+    request(server).patch(`/api/goals/${goalId}`).set(student.auth).send(body);
+
+  const soon = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
+
+  it('changes the time, and says so in the group chat', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const member = await registerVerifiedUser('member_be24@thapar.edu');
+    const goal = await postGoal(poster);
+    await join(member, poster, goal.id);
+
+    const res = await edit(poster, goal.id, { dateTime: soon(30) }).expect(200);
+    expect(res.body.goal.dateTime).not.toBeNull();
+
+    // The whole reason editing is safe: somebody who joined for six o'clock finds out, in the
+    // place they are already looking, rather than by turning up at the wrong time.
+    const chat = await request(server)
+      .get(`/api/goals/${goal.id}/messages`)
+      .set(member.auth)
+      .expect(200);
+    expect(chat.body.messages[0].kind).toBe('SYSTEM');
+    expect(chat.body.messages[0].body).toMatch(/^The time changed to /);
+  });
+
+  it('says nothing in the chat when the time did not change', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const member = await registerVerifiedUser('member_be24@thapar.edu');
+    const goal = await postGoal(poster);
+    await join(member, poster, goal.id);
+
+    await edit(poster, goal.id, { title: 'A completely different title' }).expect(200);
+
+    const chat = await request(server)
+      .get(`/api/goals/${goal.id}/messages`)
+      .set(poster.auth)
+      .expect(200);
+    expect(chat.body.messages).toEqual([]);
+  });
+
+  it('leaves the fields it was not given alone', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const goal = await postGoal(poster, { headcount: 3, description: 'The original plan.' });
+
+    const res = await edit(poster, goal.id, { title: 'Only the title moved' }).expect(200);
+    expect(res.body.goal.title).toBe('Only the title moved');
+    expect(res.body.goal.description).toBe('The original plan.');
+    expect(res.body.goal.headcount).toBe(3);
+  });
+
+  it('refuses anybody but the poster', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const member = await registerVerifiedUser('member_be24@thapar.edu');
+    const goal = await postGoal(poster);
+    await join(member, poster, goal.id);
+
+    await edit(member, goal.id, { title: 'Hijacked by a member' }).expect(403);
+  });
+
+  it('refuses a time in the past', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const goal = await postGoal(poster);
+    await edit(poster, goal.id, { dateTime: '2020-01-01T10:00:00.000Z' }).expect(400);
+  });
+
+  it('refuses a headcount below the people already in', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const one = await registerVerifiedUser('one_be24@thapar.edu');
+    const two = await registerVerifiedUser('two_be24@thapar.edu');
+    const goal = await postGoal(poster, { headcount: 3 });
+    await join(one, poster, goal.id);
+    await join(two, poster, goal.id);
+
+    // There is no honest way to choose which of them stops being in.
+    await edit(poster, goal.id, { headcount: 1 }).expect(400);
+    await edit(poster, goal.id, { headcount: 2 }).expect(200);
+  });
+
+  it('reopens a full goal when the headcount goes up', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const member = await registerVerifiedUser('member_be24@thapar.edu');
+    const goal = await postGoal(poster, { headcount: 1 });
+    await join(member, poster, goal.id);
+
+    const before = await request(server).get(`/api/goals/${goal.id}`).set(poster.auth);
+    expect(before.body.goal.status).toBe('FULL');
+
+    const res = await edit(poster, goal.id, { headcount: 3 }).expect(200);
+    expect(res.body.goal.status).toBe('OPEN');
+    expect(res.body.goal.spotsLeft).toBe(2);
+  });
+
+  it('fills a goal when the headcount drops onto the people already in', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const member = await registerVerifiedUser('member_be24@thapar.edu');
+    const goal = await postGoal(poster, { headcount: 3 });
+    await join(member, poster, goal.id);
+
+    const res = await edit(poster, goal.id, { headcount: 1 }).expect(200);
+    expect(res.body.goal.status).toBe('FULL');
+  });
+
+  it('refuses to hide the poster once people have seen who they are', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const member = await registerVerifiedUser('member_be24@thapar.edu');
+    const goal = await postGoal(poster);
+    await join(member, poster, goal.id);
+
+    const res = await edit(poster, goal.id, { anonymous: true }).expect(400);
+    expect(res.body.error.message).toMatch(/already joined/);
+  });
+
+  it('allows anonymity to be turned on while nobody is in yet', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const goal = await postGoal(poster);
+    await edit(poster, goal.id, { anonymous: true }).expect(200);
+  });
+
+  it('always allows a poster to drop their own anonymity', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const member = await registerVerifiedUser('member_be24@thapar.edu');
+    const goal = await postGoal(poster, { anonymous: true });
+    await join(member, poster, goal.id);
+
+    // Revealing yourself is your own business, whoever has already joined.
+    const res = await edit(poster, goal.id, { anonymous: false }).expect(200);
+    expect(res.body.goal.anonymous).toBe(false);
+  });
+
+  it('refuses to edit a goal that has already finished', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const goal = await postGoal(poster);
+    await move(poster, goal.id, 'close').expect(200);
+    await move(poster, goal.id, 'complete').expect(200);
+
+    const res = await edit(poster, goal.id, { title: 'Rewriting history' }).expect(409);
+    expect(res.body.error.code).toBe('CONFLICT');
+  });
+
+  it('refuses a body that tries to set the status directly', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const goal = await postGoal(poster);
+    // The lifecycle has its own endpoints, and `.strict()` refuses the shortcut.
+    await edit(poster, goal.id, { status: 'COMPLETED' }).expect(400);
+    await edit(poster, goal.id, { acceptedCount: 99 }).expect(400);
+  });
+
+  it('refuses an empty edit', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const goal = await postGoal(poster);
+    await edit(poster, goal.id, {}).expect(400);
+  });
+
+  it('moves the expiry with the time, so the feed follows the new one', async () => {
+    const poster = await registerVerifiedUser('poster_be24@thapar.edu');
+    const goal = await postGoal(poster, { dateTime: soon(2) });
+
+    await edit(poster, goal.id, { dateTime: soon(50) }).expect(200);
+    const stored = await prisma.goal.findUniqueOrThrow({ where: { id: goal.id } });
+    expect(stored.expiresAt?.getTime()).toBe(stored.dateTime?.getTime());
   });
 });
