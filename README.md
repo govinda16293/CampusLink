@@ -55,5 +55,6 @@ make docs
 
 - Govind, Roll No-1024030968, Email: gpodder_be24@thapar.edu
 - Ashish, Roll No-1024030096 , Email: Kashish_be24@thapar.edu
-- Divya, CSED - Roll No: TBD, Email: TBD
+- Divya, CSED - Roll No: 1024030099, Email: ddivya_be24@thapar.edu
+- Divyansh, Roll No-1024030064, Email:dprashar_be24@thapar.edu
 
