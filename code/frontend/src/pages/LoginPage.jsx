@@ -83,15 +83,10 @@ export function LoginPage() {
           error={form.fieldErrors.password}
         />
 
-        <div className="flex justify-end pt-1">
-          <Link
-            to="/verify"
-            state={{ email: form.values.email }}
-            className="text-sm text-label-secondary underline-offset-4 hover:text-label hover:underline"
-          >
-            Forgot password?
-          </Link>
-        </div>
+        {/* No "Forgot password?" link: there is no password reset yet. It used to point at
+            /verify, a page that announces "we sent you a code" without anything having sent one —
+            and with an empty email field it bounced the user to /signup instead. A link that
+            promises recovery and delivers neither is worse than no link. */}
 
         <Button type="submit" loading={form.submitting} withArrow className="mt-2 w-full">
           {form.submitting ? 'Signing in…' : 'Sign In'}

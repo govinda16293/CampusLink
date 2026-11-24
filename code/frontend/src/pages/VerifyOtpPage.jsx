@@ -101,10 +101,10 @@ export function VerifyOtpPage() {
         </div>
       </form>
 
-      <p className="mt-6 border-t border-separator pt-4 text-xs text-label-secondary">
-        Developing locally? The code is printed in the terminal running{' '}
-        <code className="font-mono text-label">npm run dev</code> — no real email is sent.
-      </p>
+      {/* A note that said "no real email is sent" used to sit here. It dated from before SMTP
+          delivery existed and is now simply false — and it was telling the one person reading
+          this screen that the code in their inbox was not real. With the console transport the
+          code still prints to the terminal, which is where a developer would look anyway. */}
     </AuthLayout>
   );
 }

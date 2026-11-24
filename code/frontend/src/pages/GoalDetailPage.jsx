@@ -412,15 +412,7 @@ export function GoalDetailPage() {
             <p className="mt-3 text-[15px] text-label-secondary">Loading the group…</p>
           )}
 
-          <p className="mt-4 text-[13px] text-label-secondary">
-            {goal.lobbyStatus === 'FORMING'
-              ? 'Still open — anyone else who joins appears here.'
-              : goal.lobbyStatus === 'CONFIRMED'
-                ? 'The group is set. Nobody else can join.'
-                : goal.lobbyStatus === 'COMPLETED'
-                  ? 'This one is done.'
-                  : 'This goal was called off.'}
-          </p>
+          <p className="mt-4 text-[13px] text-label-secondary">{rosterFootnote(goal)}</p>
         </section>
       )}
 
@@ -600,6 +592,26 @@ export function GoalDetailPage() {
 }
 
 /** Where the student stands on this goal, with its symbol. Presentation only. */
+/**
+ * The line under the roster saying whether anyone else can still join.
+ *
+ * FORMING covers two different situations — a goal with spots left and one whose spots are all
+ * taken — and saying "still open, anyone else who joins appears here" under a full group is
+ * plainly wrong to anyone reading it. A full goal is not closed either: withdrawing releases the
+ * seat and puts the goal back to OPEN (releaseSeat in requests.service.ts), so the copy says the
+ * spot can come back rather than that the group is settled.
+ */
+function rosterFootnote(goal) {
+  if (goal.lobbyStatus === 'FORMING') {
+    return goal.spotsLeft > 0
+      ? 'Still open — anyone else who joins appears here.'
+      : 'Every spot is taken. If somebody drops out, it opens up again.';
+  }
+  if (goal.lobbyStatus === 'CONFIRMED') return 'The group is set. Nobody else can join.';
+  if (goal.lobbyStatus === 'COMPLETED') return 'This one is done.';
+  return 'This goal was called off.';
+}
+
 function StatusLine({ icon: Icon, tone, title, children }) {
   const toneClass =
     tone === 'positive' ? 'bg-positive/15 text-positive-text' : 'bg-accent/12 text-accent';

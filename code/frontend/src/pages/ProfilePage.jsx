@@ -111,7 +111,7 @@ export function ProfilePage() {
           )}
         </div>
 
-        <div className="mt-6 grid items-center gap-10 lg:grid-cols-[1fr_auto]">
+        <div className="mt-6 grid items-center gap-6 lg:grid-cols-[1fr_auto] lg:gap-10">
           <div className="min-w-0">
             <p className="text-[15px] font-semibold text-link">
               {user.branch ? BRANCH_LABEL[user.branch] : 'Branch not set'}
@@ -141,7 +141,10 @@ export function ProfilePage() {
             </dl>
           </div>
 
-          <div className="flex justify-center lg:justify-end">
+          {/* Beside the name on a wide screen, above it on a phone. Without the reorder the
+              single-column stack drops the portrait below the whole tile grid, where it reads as
+              something left over rather than the head of the profile. */}
+          <div className="order-first flex justify-center lg:order-none lg:justify-end">
             <Avatar name={user.name} id={user.id} photoUrl={user.photoUrl} size="xl" halo />
           </div>
         </div>

@@ -38,7 +38,9 @@ export function Avatar({ name, id, photoUrl, size = 'md', halo = false, classNam
     sm: 'size-9 text-xs',
     md: 'size-12 text-sm',
     lg: 'size-20 text-xl',
-    xl: 'size-40 text-4xl',
+    // The profile hero, and the one size that has to flex: at 160px it fills a third of a phone
+    // screen, where it reads as a stray graphic rather than a portrait.
+    xl: 'size-24 text-2xl sm:size-32 sm:text-3xl lg:size-40 lg:text-4xl',
   };
 
   // The glass ring around the profile hero. Purely decorative, so it never carries meaning.
