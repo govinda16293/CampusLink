@@ -1,0 +1,608 @@
+\documentclass[11pt,a4paper]{report}
+
+% ---------- Packages ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathpazo}                 % Palatino-like serif, close to reference report
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{amsmath,amssymb}
+\usepackage[hidelinks,colorlinks=false]{hyperref}
+\usepackage{caption}
+\usepackage{setspace}
+
+% ---------- Colours ----------
+\definecolor{headingblue}{RGB}{31,73,125}
+\definecolor{rulegray}{RGB}{90,90,90}
+
+% ---------- Section / chapter styling ----------
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries}
+  {\Large Chapter \thechapter}
+  {10pt}
+  {\Huge}
+\titlespacing*{\chapter}{0pt}{0pt}{30pt}
+
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{headingblue}}
+  {\thesection}{0.6em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{headingblue}}
+  {\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}
+  {\normalfont\bfseries\color{headingblue}}
+  {\thesubsubsection}{0.6em}{}
+
+% ---------- Headers / footers ----------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small UCS503 -- Project Report}
+\fancyhead[R]{\small CampusLink}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyfoot[C]{\thepage}
+
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+\newcommand{\arrow}{$\rightarrow$}
+\usepackage{float}
+\graphicspath{{figures/}}
+
+\begin{document}
+
+% =====================================================
+% TITLE PAGE
+% =====================================================
+\begin{titlepage}
+\centering
+\vspace*{1.2cm}
+{\large\bfseries UCS503 -- Final Project Report}\\[1.2cm]
+\rule{\linewidth}{0.6pt}\\[0.8cm]
+{\Huge\bfseries CampusLink}\\[0.5cm]
+{\Large A Goal-Matching \& Resource-Sharing Platform for College Campuses}\\[0.6cm]
+{\itshape ``Find your people -- beyond your friend circle.''}\\[0.8cm]
+\rule{\linewidth}{0.6pt}\\[1.6cm]
+
+{\bfseries Submitted to:}\\[0.2cm]
+Ma'am Anushka\\
+Computer Science and Engineering Department\\[1.2cm]
+
+{\bfseries Submitted by:}\\[0.4cm]
+\begin{tabular}{@{}ll@{}}
+1024030968 & Govind \\[0.15cm]
+1024030096 & Ashish Bajaj \\[0.15cm]
+1024030099 & Divya \\[0.15cm]
+1024030064 & Divyansh \\[0.3cm]
+\end{tabular}\\[0.2cm]
+Group: BE Third Year, CSE
+
+\vfill
+
+Thapar Institute of Engineering and Technology, Patiala
+\vspace*{1cm}
+\end{titlepage}
+
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\listoffigures
+\listoftables
+\clearpage
+\pagenumbering{arabic}
+
+% =====================================================
+% CHAPTER 1 -- INTRODUCTION
+% =====================================================
+\chapter{Introduction}
+
+\section{Background and Context}
+
+On a large residential campus, day-to-day coordination between students still happens through fragmented,
+informal channels -- batch WhatsApp groups, hostel groups and word of mouth. This works only when a
+student already knows the right people: if nobody in a friend circle is free for a gym session, or headed the
+same way for a cab, the plan simply does not happen, even though someone else on campus probably wants
+the exact same thing. There is also no lasting record of whether someone follows through on a plan.
+
+CampusLink is a web-based goal-matching platform for college campuses. It reframes an activity that needs
+another person as a \emph{goal}: a student posts it, the goal appears on a public campus feed, interested
+students request to join, the poster accepts the right people, and the accepted group -- the \emph{lobby} --
+coordinates in a real-time chat. After the activity, members confirm who actually attended, which builds a
+reliability score that the next person can see before committing.
+
+\subsection{Problem Statement}
+
+Everyday coordination on campus has a few recurring pain points that CampusLink is designed to address:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Limited reach:} if a student does not personally know someone free for a given activity,
+    the plan does not happen, even though a match likely exists elsewhere on campus.
+  \item \textbf{No structure for stranger interaction:} there is no safe, trust-building layer for meeting
+    someone unfamiliar.
+  \item \textbf{Inefficient notes and resource sharing:} asking in several groups for last semester's notes
+    often gets no response, or a response too late to be useful.
+  \item \textbf{No accountability:} students flake on plans with no record of it, so the next person has no
+    way to judge reliability before committing time to them.
+\end{itemize}
+
+\section{Project Objectives}
+
+\begin{enumerate}[leftmargin=1.6em]
+  \item \textbf{Objective 1:} Let verified students (\texttt{@thapar.edu} e-mail with OTP) post and discover
+    goals through a public, filterable campus feed.
+  \item \textbf{Objective 2:} Provide a structured request-to-join and lobby-formation workflow, so a plan
+    becomes a group only once the poster approves the right people (or auto-accepts).
+  \item \textbf{Objective 3:} Build a trust and safety layer -- reliability scoring, report/block,
+    gender-preference filtering and anonymous posting.
+  \item \textbf{Objective 4:} Support real-time coordination through in-lobby group chat.
+  \item \textbf{Objective 5:} Record goal outcomes and attendance so future users can judge a poster's
+    reliability before committing.
+  \item \textbf{Objective 6:} Give administrators a way to review reports, with every sensitive action
+    audit-logged.
+\end{enumerate}
+
+Section~\ref{sec:achieved} revisits these objectives against the final build.
+
+\section{Software Development Life Cycle}
+
+The project followed an \textbf{incremental (iterative) model}. Requirements (the SRS) and the high-level
+UML design were produced first; implementation was then split into numbered increments, each delivering one
+feature end to end -- database schema, API, user interface and automated tests -- and left in a working,
+demonstrable state before the next began.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}cll@{}}
+\toprule
+\textbf{Increment} & \textbf{Feature delivered} & \textbf{Status} \\
+\midrule
+0 & Project setup, health check, continuous integration & Complete \\
+1 & Sign-up with college e-mail, OTP verification, login & Complete \\
+2 & Student profiles and profile photo & Complete \\
+3 & Posting a goal and the public feed (incl. anonymous posts) & Complete \\
+4 & Request to join, accept / reject, auto-accept & Complete \\
+5 & Lobbies and the goal lifecycle (close, complete, reopen) & Complete \\
+6 & Real-time lobby chat & Complete \\
+8 & Report, block, admin review, audit-logged unmasking & Complete \\
+9 & Attendance ratings and reliability score & Complete \\
+-- & Editing a goal, with automatic chat notification & Complete \\
+\bottomrule
+\end{tabular}
+\caption{Development increments}
+\end{table}
+
+The incremental model was chosen because it gives a working product early, lets the riskiest parts
+(identity verification and anonymity) be built and tested first, and allows features to be cut from the end of
+the plan without leaving anything half-built.
+
+% =====================================================
+% CHAPTER 2 -- METHODOLOGY AND DESIGN
+% =====================================================
+\chapter{Methodology and Design}
+
+\section{System Architecture}
+
+CampusLink follows a three-tier web architecture: a React frontend, a Node.js/Express backend API with a
+Socket.IO real-time layer, and a relational database accessed through the Prisma ORM (Figure~\ref{fig:arch}).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{architecture.pdf}
+  \caption{Three-tier system architecture of CampusLink}
+  \label{fig:arch}
+\end{figure}
+
+\subsection{High-Level Design}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Frontend:} a responsive React (Vite) application covering sign-up/login, the feed with
+    Discover / My goals / Joined views, goal detail and posting, profiles, lobby chat and an admin panel.
+  \item \textbf{Backend API:} 38 REST endpoints organised as route \arrow{} controller \arrow{} service
+    \arrow{} domain rules \arrow{} database \arrow{} serializer.
+  \item \textbf{Database:} nine tables -- users, OTP tokens, goals, join requests, messages, ratings,
+    reports, blocks and an audit log (Section~\ref{sec:db}).
+  \item \textbf{Real-time layer:} Socket.IO rooms, one per lobby, for live group chat.
+  \item \textbf{Shared package:} validation schemas (Zod) imported by both frontend and backend, so a form
+    enforces exactly the rule the server applies.
+\end{itemize}
+
+\subsection{Technology and Component Stack}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}p{3.2cm}p{10.5cm}@{}}
+\toprule
+\textbf{Layer} & \textbf{Technology} \\
+\midrule
+Frontend & React 18, Vite, Tailwind CSS, React Router, Zustand \\
+Backend & Node.js, Express 5, TypeScript \\
+Real time & Socket.IO \\
+Database & Prisma ORM -- SQLite in development, PostgreSQL for deployment \\
+Validation & Zod schemas in a shared package \\
+Authentication & JWT sessions, scrypt password hashing, OTP over SMTP (Nodemailer) \\
+Testing & Vitest and Supertest; GitHub Actions for continuous integration \\
+\bottomrule
+\end{tabular}
+\caption{Technology stack}
+\end{table}
+
+\section{System Design}
+
+\subsection{Use Case Diagram}
+
+The use case model identifies three actors -- Student, Admin and Mail Service. Students sign up and log in
+(both including e-mail OTP verification, delivered by the Mail Service), manage their profile, post and browse
+goals, request to join a goal, approve or reject requests on their own goals, coordinate in the lobby chat,
+rate completion and flag no-shows, and report or block another user. Admins review reports.
+Figure~\ref{fig:usecase} shows the full model. Every use case in it is implemented in the final build except
+\emph{Share Notes / Resources}, which is discussed in Section~\ref{sec:deviations}.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth,height=0.72\textheight,keepaspectratio]{use_case_diagram.png}
+  \caption{Use Case Diagram of CampusLink}
+  \label{fig:usecase}
+\end{figure}
+
+\subsection{Sequence Diagram}
+
+Figure~\ref{fig:seq} traces a single goal-matching interaction: the requester opens the feed, the frontend
+asks the backend for goals, the backend reads them from the database and returns them for display. When the
+requester sends a join request, the backend notifies the organizer, and once the organizer approves, the
+requester is accepted and added to the lobby. In the final build the acceptance is a single conditional
+database update, so two people can never take the same last seat.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{sequence_diagram.jpg}
+  \caption{Sequence Diagram for a CampusLink Goal Request}
+  \label{fig:seq}
+\end{figure}
+
+\subsection{Activity Diagram}
+
+Figure~\ref{fig:activity} follows the full lifecycle of a goal across the Organizer, Requester and System
+swimlanes: a goal is posted as \texttt{OPEN}, discovered on the feed and requested by an interested student.
+If auto-accept is enabled the system accepts automatically; otherwise the organizer approves or rejects.
+Each accepted request increments the goal's accepted count; once the headcount is reached the goal becomes
+\texttt{FULL}. Members coordinate in the lobby chat and, after the activity, record who attended, which
+moves each person's reliability score before the goal is marked \texttt{COMPLETED}.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{activity_diagram.png}
+  \caption{Activity Diagram of the Goal Lifecycle}
+  \label{fig:activity}
+\end{figure}
+
+\subsection{State Diagrams}
+
+The two central entities each have a lifecycle, implemented as pure transition tables in the backend's
+\texttt{domain/} folder. Any move not shown in Figures~\ref{fig:stategoal} and~\ref{fig:statereq} is rejected
+by the server.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{state_goal.pdf}
+  \caption{State Diagram of a Goal}
+  \label{fig:stategoal}
+\end{figure}
+
+A goal is \texttt{FULL} when every seat is taken and returns to \texttt{OPEN} if a member withdraws. The
+poster \emph{closes} it to lock the group in, can \emph{reopen} it, and finally marks it \texttt{COMPLETED}.
+\texttt{COMPLETED} and \texttt{CANCELLED} are final: a finished goal cannot be edited or left, because the
+attendance votes depend on its final membership.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{state_request.pdf}
+  \caption{State Diagram of a Join Request}
+  \label{fig:statereq}
+\end{figure}
+
+A rejected request is final, so a declined student cannot simply ask again; a student who withdrew can.
+
+\subsection{Data Flow Diagrams}
+
+Figure~\ref{fig:dfd0} is the context-level (Level~0) DFD: the whole system is one process exchanging data
+with three external entities. Figure~\ref{fig:dfd1} decomposes it into seven processes and seven data stores,
+which correspond directly to the backend's feature modules.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\textwidth]{dfd0.pdf}
+  \caption{Level 0 DFD (Context Diagram)}
+  \label{fig:dfd0}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{dfd1.pdf}
+  \caption{Level 1 DFD}
+  \label{fig:dfd1}
+\end{figure}
+
+\section{Database and Domain Model Design}
+\label{sec:db}
+
+Figure~\ref{fig:class} is the class diagram of the final system. It is drawn from the actual database schema
+(\texttt{schema.prisma}): every class is a table and the attributes are the real columns.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\textwidth]{class_final.pdf}
+  \caption{Class Diagram of the Final System}
+  \label{fig:class}
+\end{figure}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{User} -- identity, profile fields, role and the reliability score.
+  \item \textbf{OtpToken} -- hashed one-time passcode with expiry and attempt count, linked by e-mail.
+  \item \textbf{Goal} -- category, title, description, time, headcount, accepted count, anonymity, gender
+    preference, auto-accept and status.
+  \item \textbf{JoinRequest} -- a student's request to join a goal, with its status.
+  \item \textbf{Message} -- a lobby chat message; \texttt{SYSTEM} messages announce changes such as a new time.
+  \item \textbf{Rating} -- one member's vote on whether another member attended a goal.
+  \item \textbf{Report}, \textbf{Block}, \textbf{AuditLog} -- the trust-and-safety records.
+\end{itemize}
+
+\textbf{Change from the prototype design.} The prototype class diagram had separate \texttt{Lobby} and
+\texttt{LobbyMember} classes. During implementation it became clear that a goal together with its
+\emph{accepted} join requests already \emph{is} the lobby. Storing it again would duplicate the same fact,
+so the lobby is derived instead, and chat messages point directly at the goal.
+
+\section{Software Design}
+
+Every request passes through the same layers, each with one job: the \emph{route} checks the URL and whether
+login is required, \emph{middleware} validates the token, the \emph{controller} validates the request body
+against the shared schema, the \emph{service} does the work, \emph{domain rules} decide whether the move is
+legal, and the \emph{serializer} decides what this particular viewer is allowed to see. Key design decisions:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Anonymity by omission.} For an anonymous goal, the poster's name, photo and id are never
+    sent to a viewer who has not been accepted; the browser cannot leak what it never received.
+  \item \textbf{No overbooking.} A seat is taken with one conditional update
+    (\texttt{acceptedCount < headcount}), so two simultaneous accepts cannot both succeed.
+  \item \textbf{Chat access re-checked.} Joining a chat room is verified against the database every time.
+  \item \textbf{Fair reliability.} A member is marked absent only if most members say so, and the score
+    $100 \times (\textit{attended} + 4) / (\textit{commitments} + 4)$ stops one early no-show from ruining a
+    new student's score.
+  \item \textbf{Audited unmasking.} An admin can reveal an anonymous poster during a report investigation,
+    but the action is written to the audit log \emph{before} the identity is returned.
+\end{itemize}
+
+\section{Implementation Details}
+
+\subsection{Authentication and User Access}
+
+Only \texttt{@thapar.edu} addresses can register; this is checked on the server. A six-digit OTP is e-mailed
+over SMTP, stored only as a hash, expires in ten minutes and allows limited attempts. Passwords are hashed
+with scrypt, and sessions use JWT. Figure~\ref{fig:login} shows the sign-in screen.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{screenshot_login.png}
+  \caption{CampusLink landing and sign-in screen}
+  \label{fig:login}
+\end{figure}
+
+\subsection{Goal Posting and Discovery}
+
+Once signed in, a student lands on the feed (Figure~\ref{fig:feed}), with category filters -- Sports, Gym,
+Study group, Travel/cab share, Food, Events, Notes/resources and Other -- and the Discover, My goals and
+Joined views. Each card shows the category, title, time, spots left and the poster's reliability score;
+anonymous posts hide the poster's identity.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{screenshot_feed.png}
+  \caption{CampusLink feed, showing category filters and an anonymous goal post}
+  \label{fig:feed}
+\end{figure}
+
+\subsection{Profile and Reliability}
+
+The profile page (Figure~\ref{fig:profile}) shows a verified badge, branch, year, interests, the reliability
+score out of 100 and the number of goals completed. Students are nudged to complete missing fields.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\textwidth]{screenshot_profile.png}
+  \caption{CampusLink student profile view}
+  \label{fig:profile}
+\end{figure}
+
+\subsection{Requests, Lobby and Chat}
+
+A student asks to join a goal with a short message. The poster accepts or rejects; with auto-accept the
+system accepts until the headcount is met. Accepted members and the poster form the lobby, whose roster is
+visible only to them, and coordinate in real-time chat with message history. The poster can edit the goal;
+if the time changes, a system message is posted in the chat automatically. Finally the poster closes the
+goal, marks it completed, and every member votes on who attended.
+
+\subsection{Trust and Safety}
+
+Any student can report another (with a reason) or block them; blocking hides the two from each other in both
+directions. Administrators review reports in an admin panel, can unmask an anonymous poster during an
+investigation, and every such action is recorded in an append-only audit log. Admin rights are read from the
+database on every request, so removing an admin takes effect immediately.
+
+% =====================================================
+% CHAPTER 3 -- RESULTS AND EVALUATION
+% =====================================================
+\chapter{Results and Evaluation}
+
+\section{Testing Methodology}
+
+Testing is automated and runs on every push through continuous integration (format check, lint, type
+check, tests and a production build). The final suite has \textbf{348 tests in 20 files, all passing}.
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Unit testing (white-box):} the pure domain rules -- goal and join-request state machines,
+    the reliability formula and majority vote, profile completeness, OTP and password hashing.
+  \item \textbf{Integration testing:} every API endpoint driven over HTTP against a real database.
+  \item \textbf{System testing (black-box):} the full user journey run in a browser with several real
+    accounts, including real OTP e-mails.
+  \item \textbf{Security testing:} non-college e-mails rejected, OTP not reusable, anonymous goals leak no
+    identity, students cannot change their own role or score, non-members cannot read a lobby's chat.
+  \item \textbf{Regression testing:} every defect fixed was given a test that fails without the fix.
+\end{itemize}
+
+\section{Functional Verification}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}p{3.4cm}p{8.4cm}p{1.6cm}@{}}
+\toprule
+\textbf{Flow} & \textbf{Verified behaviour} & \textbf{Result} \\
+\midrule
+Sign-up \& OTP & Registering with a college e-mail sends a real OTP; verifying it issues a session. & Pass \\
+Login & Valid credentials return a session and load the profile and feed. & Pass \\
+Feed & Goals load with category filters, spots left and the Discover / My goals / Joined views. & Pass \\
+Post a goal & Anonymous, gender-preference and auto-accept options are applied. & Pass \\
+Request \& lobby & Requests are auto-accepted or approved; accepted members form the lobby. & Pass \\
+Lobby chat & Members exchange messages in real time; non-members are refused. & Pass \\
+Edit a goal & A time change posts a system message in the lobby chat. & Pass \\
+Ratings & Attendance votes update each member's reliability score. & Pass \\
+Trust \& safety & Report, block, admin review and audited unmasking work as designed. & Pass \\
+\bottomrule
+\end{tabular}
+\caption{Functional verification of the final build}
+\end{table}
+
+\section{Sample Test Cases}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}p{1.1cm}p{5.6cm}p{4.8cm}p{1.2cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Test} & \textbf{Expected result} & \textbf{Result} \\
+\midrule
+TC-1 & Sign up with a non-college e-mail & Rejected & Pass \\
+TC-2 & Re-use an OTP that was already used & Rejected & Pass \\
+TC-3 & Too many wrong OTP attempts & Further attempts refused & Pass \\
+TC-4 & Student tries to set own role to admin & Refused; role unchanged & Pass \\
+TC-5 & View an anonymous goal as another student & No name, id or photo returned & Pass \\
+TC-6 & Request to join own goal & Refused & Pass \\
+TC-7 & Request a goal that does not match gender preference & Refused & Pass \\
+TC-8 & Two accepts race for the last seat & Only one succeeds & Pass \\
+TC-9 & Non-member reads a lobby's messages & Refused & Pass \\
+TC-10 & Leave a goal after it is completed & Refused & Pass \\
+TC-11 & One member votes absent, two vote present & Recorded as attended & Pass \\
+TC-12 & Reduce spots below accepted members & Refused & Pass \\
+TC-13 & Student opens an admin endpoint & Refused & Pass \\
+\bottomrule
+\end{tabular}
+\caption{Sample test cases}
+\end{table}
+
+\section{Objectives Achieved}
+\label{sec:achieved}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}p{8.6cm}p{5.0cm}@{}}
+\toprule
+\textbf{Objective} & \textbf{Status} \\
+\midrule
+1. Verified students post and discover goals & Achieved \\
+2. Request-to-join and lobby workflow & Achieved \\
+3. Trust and safety layer & Achieved \\
+4. Real-time lobby chat & Achieved \\
+5. Attendance and reliability & Achieved \\
+6. Admin review with audit log & Achieved \\
+\bottomrule
+\end{tabular}
+\caption{Project objectives against the final build}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}p{8.6cm}p{5.0cm}@{}}
+\toprule
+\textbf{Measure} & \textbf{Value} \\
+\midrule
+API endpoints & 38 \\
+Database tables & 9 \\
+Automated tests & 348 (all passing) \\
+Approximate code size & 3,900 backend, 5,800 frontend, 700 shared lines \\
+Approximate test code & 3,700 lines \\
+\bottomrule
+\end{tabular}
+\caption{Project metrics}
+\end{table}
+
+\section{Deviations from the Proposal}
+\label{sec:deviations}
+
+Some proposal features were deliberately not built, so the core journey could be finished properly:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Notes file sharing} -- a separate product (storage, copyright, moderation). ``Notes /
+    resources'' remains a goal category, so students can still ask for notes and arrange it in chat.
+  \item \textbf{Google sign-in} -- college e-mail with OTP already proves the user is a Thapar student.
+  \item \textbf{Push notifications and direct messages} -- not needed for the core journey; group chat
+    covers coordination.
+  \item \textbf{Rule-based match suggestions} -- moved to future work.
+\end{itemize}
+
+\section{Analysis}
+
+Building in small, complete increments meant that problems were found through real use: a member could
+leave a goal after it was completed, two people could in principle take the same last seat, and posters had
+no way to change a goal's time without destroying the lobby. Each was fixed with a test, and the last one
+became the goal-editing feature. The trust features are enforced on the server rather than hidden in the
+interface, so they hold even if someone tampers with the client.
+
+% =====================================================
+% CHAPTER 4 -- CONCLUSION
+% =====================================================
+\chapter{Conclusion}
+
+\section{Summary of Work}
+
+CampusLink delivers the complete loop described in the proposal -- post, discover, request, form a lobby,
+chat, complete and rate -- together with a trust-and-safety layer of verified identity, anonymous posting,
+gender preference, report/block, reliability scores and audited admin actions. It is a working three-tier
+application with 38 API endpoints, nine database tables and 348 passing automated tests.
+
+\section{Key Findings}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item A public feed plus a request/approve step turns an unstructured WhatsApp-group problem into an
+    auditable workflow.
+  \item Privacy promises are only reliable when the server enforces them; anonymity works because the
+    identity is never sent.
+  \item A majority vote with a starting allowance makes the reliability score fair to new students.
+  \item The incremental model let the team ship a finished core instead of many half-built features.
+\end{itemize}
+
+\section{Future Work and Recommendations}
+
+\begin{enumerate}[leftmargin=1.6em]
+  \item Deploy on PostgreSQL at a public URL and run a pilot with 15--20 students.
+  \item Add a scheduled job to archive expired goals and measure the lobby fulfilment rate.
+  \item Add rule-based match suggestions using interests, branch and past categories.
+  \item Revisit notes and resource sharing.
+  \item Treat e-mail aliases (e.g.\ \texttt{name+1@thapar.edu}) as one account.
+\end{enumerate}
+
+\section{Final Remarks}
+
+CampusLink is built around the idea that campus coordination should not depend on already knowing the right
+people. By pairing a simple post/request/lobby loop with a trust-and-safety layer built in from the start,
+the platform makes meeting someone new on campus feel workable rather than risky.
+
+\end{document}
