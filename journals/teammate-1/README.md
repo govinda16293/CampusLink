@@ -1,16 +1,26 @@
 # Ashish - Project Journal
 
-Week 1 — Proposal Drafted the initial project proposal for CampusLink. Defined the problem statement and our proposed solution, selected the technical stack, and laid out the evaluation plan along with the main risks and how we intend to mitigate them.
+Proposal Drafted the initial project proposal for CampusLink. Defined the problem statement and our proposed solution, selected the technical stack, and laid out the evaluation plan along with the main risks and how we intend to mitigate them.
 
-Week 2 — Design Created the UML diagrams for the system, working together with my teammate Kumar Ashish. These cover the core structure and interactions we plan to build against.
+ Design Created the UML diagrams for the system, working together with my teammate Kumar Ashish. These cover the core structure and interactions we plan to build against.
 
-Week 3 — Implementation Begins Started building the actual project. Progress is roughly 20–30% complete. Work this week focused on three core pieces of functionality:
+ Implementation Begins Started building the actual project. Progress is roughly 20–30% complete. Work this week focused on three core pieces of functionality:
 
 Login and authorization — users can register and sign in they can use their Thapar mail id for getting authorisation and will get OTP for verification , with authenticated sessions gating access to the signed-in parts of the app.
 Profile creation — after signing up, a user can set up their profile.
 Posting goals — users can create and post goals, with the goal date defaulting to today and scheduling gated on the time.
 Alongside the features, we set up the project structure, splitting it into separate frontend, backend, and shared parts, and wired in the signed-in and signed-out screens using the supplied campus artwork. The frontend is plain JavaScript with React and Tailwind.
 
-Next steps are to keep building on this foundation in small, verified increments.
+Next steps are to keep building on this foundation in small, verified increments.   
+Ashish — Frontend & User Experience
+- React, Vite, Tailwind frontend setup
+- Login, signup, OTP, and profile screens
+- Goal-posting form and campus feed UI
+- Filters, categories, anonymous-post display, states/messages
+- Join-request, lobby roster, and joined-goals screens
+- Real-time chat interface and goal-edit screens
+- Completion, ratings, and reliability-score UI
+- Report/block and admin dashboard UI
+- Responsive design, UI fixes, demo readiness
 
 
