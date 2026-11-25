@@ -1,0 +1,10 @@
+Testing, QA & Documentation
+Requirement analysis and project scope review
+UML diagrams and entity/data-flow documentation
+Test planning for auth, profiles, and validations
+Testing goals, feeds, filters, scheduling, and anonymity
+Testing join requests, full-goal conditions, and seat-limit cases
+Testing chat access, lobby privacy, and goal updates
+Testing ratings, reliability rules, and invalid state transitions
+Testing report/block/admin moderation workflows
+End-to-end testing, screenshots, test evidence, documentation, and viva notes
