@@ -23,24 +23,27 @@ Most campus coordination still happens through fragmented WhatsApp groups, frien
 
 ## Core Features
 
-- College email signup and verification.
+- College email (`@thapar.edu`) signup with OTP verification.
 - Goal posting with category, description, date/time, and required headcount.
-- Public goal feed with category/date filters.
+- Public goal feed with category filters and Discover / My goals / Joined views.
 - Request-to-join flow with manual approval or auto-accept.
-- Lobby chat for accepted users.
-- Private chat flow for notes/resource requests.
-- Profiles with branch, year, completed goals, and reliability score.
-- Report/block controls, anonymous posting, gender-preference filters, no-show flagging, and feedback.
+- Real-time lobby chat for accepted members.
+- Editing a goal, with an automatic chat message when the time changes.
+- Profiles with branch, year, interests, photo, completed goals, and reliability score.
+- Anonymous posting, gender-preference filters, report/block controls, and attendance-based reliability.
+- Admin review of reports, with every unmasking recorded in an audit log.
 
-## Planned Stack
+Notes/resource requests are supported as a goal category; file-based notes sharing and private one-to-one chat were not built (see the final report).
 
-- Frontend: React, Vite, Tailwind CSS, React Router, Zustand or Redux Toolkit.
-- Backend: Node.js with Express or NestJS.
-- Database: MongoDB or PostgreSQL.
+## Tech Stack
+
+- Frontend: React 18, Vite, Tailwind CSS, React Router, Zustand.
+- Backend: Node.js with Express 5 (TypeScript).
+- Database: Prisma ORM with SQLite in development and PostgreSQL for deployment.
 - Real-time layer: Socket.IO.
-- Authentication: JWT with college email OTP verification.
-- Storage: Cloudinary or Firebase for notes and profile photos.
-- Deployment: Vercel for frontend, Render/Railway for backend.
+- Authentication: JWT sessions, scrypt password hashing, college email OTP over SMTP.
+- Validation: Zod schemas shared by frontend and backend.
+- Testing: Vitest and Supertest, run on every push by GitHub Actions.
 
 ## Documentation
 

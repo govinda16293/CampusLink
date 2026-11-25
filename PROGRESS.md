@@ -179,6 +179,7 @@ Two parts of this are worth pointing out in a viva:
 |---|---|
 | Govind | 1024030968 |
 | Ashish Bajaj | 1024030096 |
-| *(third member — to be filled in)* | |
+| Divya | 1024030099 |
+| Divyansh | 1024030064 |
 
 Faculty advisor: **Ma'am Anushka**
